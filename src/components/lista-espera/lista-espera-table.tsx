@@ -119,7 +119,7 @@ function PromoverButton({
 export function ListaEsperaTable() {
   return (
     <div className="rounded-xl border border-border bg-card">
-      <Table>
+      <Table aria-label="Lista de espera">
         <TableHeader>
           <TableRow>
             <TableHead className="pl-4 w-24">Posición</TableHead>

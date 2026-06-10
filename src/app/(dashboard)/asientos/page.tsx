@@ -1,4 +1,10 @@
+import type { Metadata } from "next"
 import { PlaneIcon } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: "Mapa de asientos",
+  description: "Seleccioná asientos disponibles para una reserva.",
+}
 import {
   Select,
   SelectContent,

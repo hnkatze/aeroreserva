@@ -41,7 +41,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-svh">
       {/* Brand panel — hidden on small screens */}
-      <aside className="hidden w-[44%] flex-col justify-between bg-gradient-to-br from-primary to-[#14275C] p-12 lg:flex">
+      <aside className="hidden w-[44%] flex-col justify-between bg-gradient-to-br from-primary to-[#14275C] p-12 lg:flex" aria-hidden="true">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500">
             <Plane className="h-6 w-6 text-[#14275C]" aria-hidden="true" />

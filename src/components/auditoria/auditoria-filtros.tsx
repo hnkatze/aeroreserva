@@ -117,15 +117,15 @@ export function AuditoriaFiltros({ onFiltrar }: AuditoriaFiltrosProps) {
             </div>
 
             {/* Indicador de filtros activos */}
-            {(operacion || tabla) && (
-              <p
-                className="self-end pb-2 font-mono text-xs text-muted-foreground"
-                aria-live="polite"
-              >
-                Filtrando por{operacion ? ` ${operacion}` : ""}
-                {tabla ? ` · ${tabla}` : ""}
-              </p>
-            )}
+            <p
+              aria-live="polite"
+              aria-atomic="true"
+              className="self-end pb-2 font-mono text-xs text-muted-foreground"
+            >
+              {(operacion || tabla)
+                ? `Filtrando por${operacion ? ` ${operacion}` : ""}${tabla ? ` · ${tabla}` : ""}`
+                : ""}
+            </p>
           </div>
         </fieldset>
       </CardContent>

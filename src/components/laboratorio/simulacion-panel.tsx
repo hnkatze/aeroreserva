@@ -305,7 +305,7 @@ function TransactionPanel({ label, txState, visibleCount }: TransactionPanelProp
       </div>
 
       {/* SQL steps */}
-      <ol className="flex flex-col gap-0 px-4 py-3" aria-label={`Pasos de ${label}`}>
+      <ol className="flex flex-col gap-0 px-4 py-3" aria-label={`Pasos de ${label}`} aria-live="polite" aria-atomic="false">
         {txState.steps.slice(0, visibleCount).map((step, i) => (
           <li key={i} className="flex items-start gap-2.5 py-1.5">
             {/* Status dot */}
@@ -411,7 +411,6 @@ export function SimulacionPanel() {
               <SelectTrigger
                 id="ctrl-isolation"
                 className="w-52 font-mono text-xs"
-                aria-label="Nivel de aislamiento de PostgreSQL"
               >
                 <SelectValue />
               </SelectTrigger>
@@ -445,7 +444,6 @@ export function SimulacionPanel() {
               <SelectTrigger
                 id="ctrl-scenario"
                 className="w-48"
-                aria-label="Escenario de concurrencia a simular"
               >
                 <SelectValue />
               </SelectTrigger>

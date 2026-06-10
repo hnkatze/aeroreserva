@@ -162,10 +162,9 @@ export function SeatDetailPanel({
             "transition-colors hover:bg-primary/90",
             "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
           )}
-          aria-label={`Reservar asiento ${seat.id}`}
         >
           <CheckIcon className="h-4 w-4" aria-hidden="true" />
-          Reservar asiento
+          Reservar asiento {seat.id}
         </button>
       </CardFooter>
     </Card>

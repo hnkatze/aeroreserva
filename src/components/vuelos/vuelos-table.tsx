@@ -155,7 +155,7 @@ export function VuelosTable({ vuelos = VUELOS_MOCK }: VuelosTableProps) {
   return (
     <Card>
       <CardContent className="px-0 pb-0">
-        <Table>
+        <Table aria-label="Listado de vuelos">
           <TableHeader>
             <TableRow>
               <TableHead className="pl-5 w-28">Vuelo</TableHead>
@@ -202,6 +202,7 @@ export function VuelosTable({ vuelos = VUELOS_MOCK }: VuelosTableProps) {
                   <TableCell>
                     <span className="inline-flex items-center gap-1 font-mono text-sm text-foreground">
                       <span>{vuelo.origen}</span>
+                      <span className="sr-only"> a </span>
                       <ArrowRightIcon
                         className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
                         aria-hidden="true"

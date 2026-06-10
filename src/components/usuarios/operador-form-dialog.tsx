@@ -184,6 +184,8 @@ export function OperadorFormDialog({ operador }: OperadorFormDialogProps) {
                   fieldErrors.username ? "op-username-error" : undefined
                 }
                 aria-invalid={fieldErrors.username ? true : undefined}
+                required={!isEdit}
+                aria-required={!isEdit ? true : undefined}
                 disabled={saving}
                 placeholder="ej. juan.perez"
               />
@@ -212,14 +214,21 @@ export function OperadorFormDialog({ operador }: OperadorFormDialogProps) {
                   setForm((f) => ({ ...f, password: e.target.value }))
                 }
                 aria-describedby={
-                  fieldErrors.password ? "op-password-error" : undefined
+                  fieldErrors.password
+                    ? "op-password-hint op-password-error"
+                    : "op-password-hint"
                 }
                 aria-invalid={fieldErrors.password ? true : undefined}
+                required={!isEdit}
+                aria-required={!isEdit ? true : undefined}
                 disabled={saving}
                 placeholder={
                   isEdit ? "Dejar en blanco para no cambiar" : ""
                 }
               />
+              <p id="op-password-hint" className="text-xs text-muted-foreground">
+                Mínimo 6 caracteres.
+              </p>
               {fieldErrors.password && (
                 <span
                   id="op-password-error"

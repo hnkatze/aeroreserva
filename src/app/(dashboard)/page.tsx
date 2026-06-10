@@ -1,4 +1,10 @@
+import type { Metadata } from "next"
 import { getCurrentOperator } from "@/lib/auth"
+
+export const metadata: Metadata = {
+  title: "Inicio",
+  description: "Resumen operativo del día: vuelos, reservas y lista de espera.",
+}
 import {
   PlaneIcon,
   TicketIcon,

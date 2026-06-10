@@ -22,7 +22,7 @@ function LegendItem({ className, label }: LegendItemProps) {
 
 export function SeatLegend() {
   return (
-    <nav aria-label="Leyenda de asientos">
+    <div role="group" aria-label="Leyenda de asientos">
       <ul className="flex flex-wrap gap-x-6 gap-y-2" role="list">
         <LegendItem className="border-border bg-background" label="Libre" />
         <LegendItem className="border-primary/30 bg-primary" label="Ocupado" />
@@ -35,6 +35,6 @@ export function SeatLegend() {
           label="Ejecutiva (libre)"
         />
       </ul>
-    </nav>
+    </div>
   )
 }

@@ -1,5 +1,6 @@
 // MOCK — todos los datos están hardcodeados; reemplazar con queries reales
 
+import type { Metadata } from "next"
 import {
   TrendingUpIcon,
   PlaneIcon,
@@ -41,6 +42,11 @@ const KPI_DATA = [
     accent: false,
   },
 ] as const
+
+export const metadata: Metadata = {
+  title: "Reportes",
+  description: "Indicadores de ocupación de la flota.",
+}
 
 export default function ReportesPage() {
   return (

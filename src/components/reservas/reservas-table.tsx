@@ -137,7 +137,7 @@ function ReservaActionsMenu({ reserva }: { reserva: Reserva }) {
 export function ReservasTable() {
   return (
     <div className="rounded-xl border bg-card">
-      <Table>
+      <Table aria-label="Listado de reservas">
         <TableHeader>
           <TableRow>
             <TableHead className="pl-4">Código</TableHead>

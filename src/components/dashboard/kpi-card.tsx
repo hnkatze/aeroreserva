@@ -20,7 +20,7 @@ export function KpiCard({ label, value, icon: Icon, trend, accent = false }: Kpi
           ? "border-amber-400 bg-amber-500"
           : "border-border bg-card",
       )}
-      aria-label={label}
+      aria-label={`${label}: ${value}. ${trend}`}
     >
       {/* Top row: label + icon square */}
       <div className="flex items-start justify-between gap-3">

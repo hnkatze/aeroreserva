@@ -44,7 +44,7 @@ export function OcupacionBarChart() {
                 <span
                   className="w-20 shrink-0 font-mono text-xs text-muted-foreground"
                   title={flight.route}
-                  aria-label={`Vuelo ${flight.code}, ruta ${flight.route}`}
+                  aria-hidden="true"
                 >
                   {flight.code}
                 </span>
@@ -56,7 +56,7 @@ export function OcupacionBarChart() {
                   aria-valuenow={pct}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label={`${flight.code}: ${pct}% de ocupación`}
+                  aria-label={`Vuelo ${flight.code}, ruta ${flight.route.replace("→", "a")}: ${pct}% de ocupación`}
                 >
                   {/* Bar fill — amber when ≥90%, primary otherwise */}
                   <div

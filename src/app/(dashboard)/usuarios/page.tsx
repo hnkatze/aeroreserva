@@ -1,4 +1,10 @@
+import type { Metadata } from "next"
 import { listarOperadores } from "@/lib/operadores";
+
+export const metadata: Metadata = {
+  title: "Usuarios",
+  description: "Administración de operadores del sistema.",
+}
 import { UsuariosTable } from "@/components/usuarios/usuarios-table";
 import { OperadorFormDialog } from "@/components/usuarios/operador-form-dialog";
 

@@ -122,7 +122,7 @@ function formatDate(date: Date | string): string {
 export function UsuariosTable({ operadores }: UsuariosTableProps) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <Table>
+      <Table aria-label="Operadores del sistema">
         <TableHeader>
           <TableRow>
             <TableHead className="pl-4">Usuario</TableHead>

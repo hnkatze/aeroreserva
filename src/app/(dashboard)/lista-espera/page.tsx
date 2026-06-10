@@ -1,6 +1,12 @@
+import type { Metadata } from "next"
 import { InfoIcon } from "lucide-react"
 
 import { ListaEsperaTable } from "@/components/lista-espera/lista-espera-table"
+
+export const metadata: Metadata = {
+  title: "Lista de espera",
+  description: "Pasajeros en espera y promoción automática.",
+}
 
 export default function ListaEsperaPage() {
   return (
@@ -17,8 +23,8 @@ export default function ListaEsperaPage() {
       </header>
 
       {/* ── Nota informativa ────────────────────────────────────────── */}
-      <div
-        role="note"
+      <aside
+        aria-label="Información sobre la promoción automática"
         className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30"
       >
         <InfoIcon
@@ -31,7 +37,7 @@ export default function ListaEsperaPage() {
           <strong className="font-semibold">Promover</strong> permite adelantar
           el proceso de forma manual.
         </p>
-      </div>
+      </aside>
 
       {/* ── Tabla ───────────────────────────────────────────────────── */}
       <section aria-label="Lista de pasajeros en espera">

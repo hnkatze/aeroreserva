@@ -1,4 +1,10 @@
+import type { Metadata } from "next"
 import { ReservasTable } from "@/components/reservas/reservas-table"
+
+export const metadata: Metadata = {
+  title: "Reservas",
+  description: "Gestión de reservas de pasajeros.",
+}
 import { NuevaReservaDialog } from "@/components/reservas/nueva-reserva-dialog"
 
 export default function ReservasPage() {

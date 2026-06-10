@@ -38,9 +38,9 @@ export function DashboardHeader({
     <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-border bg-background px-8">
       {/* Left: title block */}
       <div className="flex flex-col justify-center">
-        <h1 className="font-heading text-xl font-semibold leading-tight text-foreground">
+        <p className="font-heading text-xl font-semibold leading-tight text-foreground">
           {title}
-        </h1>
+        </p>
         <p className="text-[13px] leading-tight text-muted-foreground">{subtitle}</p>
       </div>
 

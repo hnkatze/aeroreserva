@@ -148,7 +148,7 @@ export function SeatMap({ flightLabel }: SeatMapProps) {
                     {/* Row number */}
                     <span
                       className="w-10 shrink-0 font-mono text-xs text-muted-foreground"
-                      aria-label={`Fila ${row}`}
+                      aria-hidden="true"
                     >
                       {row}
                     </span>
@@ -198,7 +198,7 @@ export function SeatMap({ flightLabel }: SeatMapProps) {
                       {isExecutiveRow && (
                         <span
                           className="rounded-sm bg-indigo-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
-                          aria-label="Clase ejecutiva"
+                          aria-hidden="true"
                         >
                           EJE
                         </span>

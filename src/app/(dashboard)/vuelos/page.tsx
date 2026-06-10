@@ -1,8 +1,11 @@
 import { VuelosFiltros } from "@/components/vuelos/vuelos-filtros"
 import { VuelosTable } from "@/components/vuelos/vuelos-table"
 
-export const metadata = {
-  title: "Vuelos — AeroReserva",
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Vuelos",
+  description: "Buscá y gestioná los vuelos programados.",
 }
 
 export default function VuelosPage() {

@@ -1,8 +1,11 @@
 import { ShieldCheckIcon } from "lucide-react"
 import { AuditoriaTable } from "@/components/auditoria/auditoria-table"
 
-export const metadata = {
-  title: "Auditoría — AeroReserva",
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Auditoría",
+  description: "Registro automático de cada cambio en la base de datos.",
 }
 
 export default function AuditoriaPage() {

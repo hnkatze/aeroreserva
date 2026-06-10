@@ -1,4 +1,10 @@
+import type { Metadata } from "next"
 import { DatabaseZapIcon } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: "Laboratorio de concurrencia",
+  description: "Demostración visual de aislamiento, bloqueos y deadlocks en PostgreSQL.",
+}
 
 import { SimulacionPanel } from "@/components/laboratorio/simulacion-panel"
 

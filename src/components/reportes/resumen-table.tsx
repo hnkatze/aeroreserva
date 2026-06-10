@@ -16,15 +16,15 @@ export function ResumenTable() {
         <table className="w-full text-sm" aria-label="Resumen de ocupación por vuelo">
           <thead>
             <tr className="border-b border-border text-left">
-              <th className="px-5 py-3 font-medium text-muted-foreground">Vuelo</th>
-              <th className="px-5 py-3 font-medium text-muted-foreground">Ruta</th>
-              <th className="px-5 py-3 text-right font-medium text-muted-foreground">
+              <th scope="col" className="px-5 py-3 font-medium text-muted-foreground">Vuelo</th>
+              <th scope="col" className="px-5 py-3 font-medium text-muted-foreground">Ruta</th>
+              <th scope="col" className="px-5 py-3 text-right font-medium text-muted-foreground">
                 Capacidad
               </th>
-              <th className="px-5 py-3 text-right font-medium text-muted-foreground">
+              <th scope="col" className="px-5 py-3 text-right font-medium text-muted-foreground">
                 Vendidos
               </th>
-              <th className="px-5 py-3 text-right font-medium text-muted-foreground">
+              <th scope="col" className="px-5 py-3 text-right font-medium text-muted-foreground">
                 Ocupación
               </th>
             </tr>
@@ -59,7 +59,7 @@ export function ResumenTable() {
                           : "bg-primary/10 text-primary"
                       }`}
                     >
-                      {pct}%
+                      {pct}%{isFull && <span className="sr-only"> (lleno)</span>}
                     </span>
                   </td>
                 </tr>

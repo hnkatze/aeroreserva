@@ -71,7 +71,7 @@ export function ProximosVuelosTable() {
       </div>
 
       <CardContent className="px-0 pb-0">
-        <Table>
+        <Table aria-label="Próximos vuelos">
           <TableHeader>
             <TableRow>
               <TableHead className="pl-5">Vuelo</TableHead>
@@ -94,6 +94,7 @@ export function ProximosVuelosTable() {
                 <TableCell>
                   <span className="font-mono text-sm text-foreground">
                     {vuelo.origen}
+                    <span className="sr-only"> a </span>
                     <span className="mx-1 text-muted-foreground" aria-hidden="true">→</span>
                     {vuelo.destino}
                   </span>

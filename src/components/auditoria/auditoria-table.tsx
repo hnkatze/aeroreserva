@@ -141,7 +141,7 @@ export function AuditoriaTable() {
 
       {/* Tabla */}
       <div className="rounded-xl border bg-card">
-        <Table>
+        <Table aria-label="Registros de auditoría">
           <TableHeader>
             <TableRow>
               <TableHead className="pl-4">Operación</TableHead>
@@ -208,12 +208,12 @@ export function AuditoriaTable() {
         </Table>
 
         {/* Footer con conteo */}
-        <div
-          className="border-t px-4 py-2"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          <p className="font-mono text-xs text-muted-foreground">
+        <div className="border-t px-4 py-2">
+          <p
+            aria-live="polite"
+            aria-atomic="true"
+            className="font-mono text-xs text-muted-foreground"
+          >
             {registrosFiltrados.length} de {AUDITORIA_MOCK.length} registros
           </p>
         </div>
