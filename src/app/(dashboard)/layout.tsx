@@ -22,8 +22,10 @@ export default async function DashboardLayout({
       <div className="flex flex-1 flex-col overflow-hidden">
         <DashboardHeader operator={operator} />
 
-        <main className="flex-1 overflow-y-auto bg-background p-6">
-          {children}
+        <main className="flex-1 overflow-y-auto bg-background">
+          <div className="mx-auto w-full max-w-[1400px] px-6 py-8 lg:px-10">
+            {children}
+          </div>
         </main>
       </div>
 
