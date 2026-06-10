@@ -24,18 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { VueloCombobox, type VueloOption } from "@/components/reservas/vuelo-combobox"
 
 // ---------------------------------------------------------------------------
 // API response DTOs — mirrors exactly what the route handlers return
 // ---------------------------------------------------------------------------
-
-interface VueloDto {
-  id: number
-  codigo: string
-  origen: string
-  destino: string
-  salida: string
-}
 
 interface AsientoDto {
   id: number
@@ -75,57 +68,21 @@ export function NuevaReservaDialog() {
   >({})
   const [raceError, setRaceError] = React.useState<string | null>(null)
 
-  const [vuelos, setVuelos] = React.useState<VueloDto[]>([])
-  const [loadingVuelos, setLoadingVuelos] = React.useState(false)
-  const [vuelosError, setVuelosError] = React.useState<string | null>(null)
-
   const [asientos, setAsientos] = React.useState<AsientoDto[]>([])
   const [loadingAsientos, setLoadingAsientos] = React.useState(false)
 
   // ── Reset all state when the dialog closes ──────────────────────────────
-  // Done in the open-change handler rather than an effect: resetting state in
-  // response to a user event is not effect work (see "You Might Not Need an
-  // Effect"), and keeps the lint rule against synchronous setState in effects.
   function resetForm() {
     setForm(EMPTY_FORM)
     setFieldErrors({})
     setRaceError(null)
-    setVuelos([])
     setAsientos([])
-    setVuelosError(null)
   }
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
     if (!next) resetForm()
   }
-
-  // ── Fetch vuelos when dialog opens ──────────────────────────────────────
-  React.useEffect(() => {
-    if (!open) return
-
-    let cancelled = false
-
-    async function fetchVuelos() {
-      setLoadingVuelos(true)
-      setVuelosError(null)
-      try {
-        const res = await fetch("/api/vuelos")
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data: { vuelos: VueloDto[] } = await res.json()
-        if (!cancelled) setVuelos(data.vuelos)
-      } catch {
-        if (!cancelled) setVuelosError("No se pudo cargar la lista de vuelos.")
-      } finally {
-        if (!cancelled) setLoadingVuelos(false)
-      }
-    }
-
-    void fetchVuelos()
-    return () => {
-      cancelled = true
-    }
-  }, [open])
 
   // ── Fetch asientos when a vuelo is selected ──────────────────────────────
   async function fetchAsientosLibres(vueloId: string) {
@@ -147,10 +104,12 @@ export function NuevaReservaDialog() {
     }
   }
 
-  function handleVueloChange(value: string | null) {
-    setForm((f) => ({ ...f, vueloId: value ?? "", asientoId: "" }))
+  function handleVueloSelect(vuelo: VueloOption | null) {
+    const vueloId = vuelo ? String(vuelo.id) : ""
+    setForm((f) => ({ ...f, vueloId, asientoId: "" }))
     setRaceError(null)
-    if (value) void fetchAsientosLibres(value)
+    if (vuelo) void fetchAsientosLibres(vueloId)
+    else setAsientos([])
   }
 
   // ── Validation ───────────────────────────────────────────────────────────
@@ -221,7 +180,7 @@ export function NuevaReservaDialog() {
     }
   }
 
-  const isFormDisabled = saving || loadingVuelos
+  const isFormDisabled = saving
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -234,7 +193,7 @@ export function NuevaReservaDialog() {
         Nueva reserva
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Nueva reserva</DialogTitle>
         </DialogHeader>
@@ -250,45 +209,17 @@ export function NuevaReservaDialog() {
         )}
 
         <form id="reserva-form" onSubmit={handleSubmit} noValidate>
-          <div className="flex flex-col gap-4 py-2">
-            {/* Vuelo */}
+          <div className="flex flex-col gap-5 py-2">
+            {/* Vuelo — combobox con búsqueda server-side */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="rsv-vuelo">Vuelo</Label>
-              <Select
+              <VueloCombobox
                 value={form.vueloId}
-                onValueChange={handleVueloChange}
+                onSelect={handleVueloSelect}
                 disabled={isFormDisabled}
-              >
-                <SelectTrigger
-                  id="rsv-vuelo"
-                  className="w-full"
-                  aria-describedby={
-                    fieldErrors.vueloId ? "rsv-vuelo-error" : undefined
-                  }
-                  aria-invalid={fieldErrors.vueloId ? true : undefined}
-                >
-                  <SelectValue
-                    placeholder={
-                      loadingVuelos
-                        ? "Cargando vuelos…"
-                        : "Seleccioná un vuelo"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {vuelosError ? (
-                    <SelectItem value="__error__" disabled>
-                      {vuelosError}
-                    </SelectItem>
-                  ) : (
-                    vuelos.map((v) => (
-                      <SelectItem key={v.id} value={String(v.id)}>
-                        {`${v.codigo} — ${v.origen} → ${v.destino}`}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+                describedBy={fieldErrors.vueloId ? "rsv-vuelo-error" : undefined}
+                invalid={!!fieldErrors.vueloId}
+              />
               {fieldErrors.vueloId && (
                 <span
                   id="rsv-vuelo-error"
@@ -368,7 +299,7 @@ export function NuevaReservaDialog() {
               >
                 <SelectTrigger
                   id="rsv-asiento"
-                  className="w-full font-mono"
+                  className="h-10 w-full font-mono"
                   aria-describedby={
                     fieldErrors.asientoId ? "rsv-asiento-error" : undefined
                   }
@@ -391,7 +322,7 @@ export function NuevaReservaDialog() {
                     <SelectItem
                       key={a.id}
                       value={String(a.id)}
-                      className="font-mono"
+                      className="py-2.5 font-mono"
                     >
                       {`${a.numero} — ${a.clase}`}
                     </SelectItem>

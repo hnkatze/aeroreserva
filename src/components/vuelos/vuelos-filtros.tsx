@@ -64,7 +64,7 @@ export function VuelosFiltros({
                 Origen
               </Label>
               <Select value={origen} onValueChange={(v) => setOrigen(v ?? NO_FILTER)}>
-                <SelectTrigger id="filtro-origen" className="h-9 text-sm">
+                <SelectTrigger id="filtro-origen" className="h-10 text-sm">
                   <SelectValue placeholder="Todos los orígenes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -84,7 +84,7 @@ export function VuelosFiltros({
                 Destino
               </Label>
               <Select value={destino} onValueChange={(v) => setDestino(v ?? NO_FILTER)}>
-                <SelectTrigger id="filtro-destino" className="h-9 text-sm">
+                <SelectTrigger id="filtro-destino" className="h-10 text-sm">
                   <SelectValue placeholder="Todos los destinos" />
                 </SelectTrigger>
                 <SelectContent>
@@ -108,12 +108,12 @@ export function VuelosFiltros({
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="h-9 text-sm"
+                className="h-10 text-sm"
               />
             </div>
 
             {/* Botón buscar */}
-            <Button type="submit" className="h-9 shrink-0 gap-2 sm:self-end">
+            <Button type="submit" className="h-10 shrink-0 gap-2 sm:self-end">
               <SearchIcon className="h-4 w-4" aria-hidden="true" />
               Buscar
             </Button>
