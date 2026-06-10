@@ -43,8 +43,8 @@ export default async function EsquemaPage() {
         </div>
       </header>
 
-      {/* Canvas */}
-      <div className="flex-1 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      {/* Canvas — explicit height: React Flow needs a sized container */}
+      <div className="h-[calc(100vh-13rem)] min-h-[480px] overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <ErDiagram esquema={esquema} />
       </div>
     </div>
