@@ -1,13 +1,8 @@
 import { redirect } from "next/navigation"
 import { getCurrentOperator } from "@/lib/auth"
 import { AppSidebar } from "@/components/app-sidebar"
+import { DashboardHeader } from "@/components/dashboard-header"
 import { Toaster } from "@/components/ui/sonner"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
 
 export default async function DashboardLayout({
   children,
@@ -21,22 +16,18 @@ export default async function DashboardLayout({
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar operator={operator} />
+    <div className="flex h-screen overflow-hidden">
+      <AppSidebar />
 
-      <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
-          <SidebarTrigger aria-label="Alternar sidebar" className="-ml-1" />
-          <Separator orientation="vertical" className="mx-1 h-4" />
-          <span className="text-sm font-medium text-foreground">AeroReserva</span>
-        </header>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <DashboardHeader operator={operator} />
 
-        <div className="flex flex-1 flex-col gap-4 p-4">
+        <main className="flex-1 overflow-y-auto bg-background p-6">
           {children}
-        </div>
-      </SidebarInset>
+        </main>
+      </div>
 
       <Toaster />
-    </SidebarProvider>
+    </div>
   )
 }
