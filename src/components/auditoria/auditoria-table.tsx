@@ -15,120 +15,35 @@ import {
   type OperacionSQL,
 } from "@/components/auditoria/operacion-badge"
 import { AuditoriaFiltros, type AuditoriaFiltros as Filtros } from "@/components/auditoria/auditoria-filtros"
+import type { RegistroBitacora } from "@/lib/bitacora"
 
-// MOCK — registros de auditoría generados por triggers de PostgreSQL
-interface RegistroAuditoria {
-  id: number
-  operacion: OperacionSQL
-  tabla: string
-  registro: string
-  usuarioBD: string
-  fechaHora: string
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Format a Date (or ISO string from JSON serialisation) for display. */
+function formatFecha(value: Date | string): string {
+  const d = value instanceof Date ? value : new Date(value)
+  // "YYYY-MM-DD HH:mm:ss" — same style as the original mock data
+  return d.toISOString().replace("T", " ").slice(0, 19)
 }
 
-const AUDITORIA_MOCK: readonly RegistroAuditoria[] = [
-  {
-    id: 1,
-    operacion: "INSERT",
-    tabla: "reservas",
-    registro: "#1287",
-    usuarioBD: "agente_caja",
-    fechaHora: "2026-06-09 14:32:08",
-  },
-  {
-    id: 2,
-    operacion: "UPDATE",
-    tabla: "reservas",
-    registro: "#1201",
-    usuarioBD: "agente_caja",
-    fechaHora: "2026-06-09 14:28:44",
-  },
-  {
-    id: 3,
-    operacion: "DELETE",
-    tabla: "pasajeros",
-    registro: "#0392",
-    usuarioBD: "admin_db",
-    fechaHora: "2026-06-09 13:55:17",
-  },
-  {
-    id: 4,
-    operacion: "INSERT",
-    tabla: "vuelos",
-    registro: "#0088",
-    usuarioBD: "operaciones",
-    fechaHora: "2026-06-09 12:10:03",
-  },
-  {
-    id: 5,
-    operacion: "UPDATE",
-    tabla: "vuelos",
-    registro: "#0081",
-    usuarioBD: "operaciones",
-    fechaHora: "2026-06-09 11:47:30",
-  },
-  {
-    id: 6,
-    operacion: "DELETE",
-    tabla: "reservas",
-    registro: "#1180",
-    usuarioBD: "agente_caja",
-    fechaHora: "2026-06-09 11:22:55",
-  },
-  {
-    id: 7,
-    operacion: "INSERT",
-    tabla: "asientos",
-    registro: "#4420",
-    usuarioBD: "operaciones",
-    fechaHora: "2026-06-09 10:58:12",
-  },
-  {
-    id: 8,
-    operacion: "UPDATE",
-    tabla: "tarifas",
-    registro: "#0019",
-    usuarioBD: "admin_db",
-    fechaHora: "2026-06-09 10:33:41",
-  },
-  {
-    id: 9,
-    operacion: "INSERT",
-    tabla: "pagos",
-    registro: "#2091",
-    usuarioBD: "agente_caja",
-    fechaHora: "2026-06-09 09:44:29",
-  },
-  {
-    id: 10,
-    operacion: "DELETE",
-    tabla: "vuelos",
-    registro: "#0074",
-    usuarioBD: "admin_db",
-    fechaHora: "2026-06-08 23:18:05",
-  },
-  {
-    id: 11,
-    operacion: "UPDATE",
-    tabla: "pasajeros",
-    registro: "#0511",
-    usuarioBD: "agente_caja",
-    fechaHora: "2026-06-08 22:07:38",
-  },
-  {
-    id: 12,
-    operacion: "INSERT",
-    tabla: "operadores",
-    registro: "#0024",
-    usuarioBD: "admin_db",
-    fechaHora: "2026-06-08 18:00:01",
-  },
-] as const
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
-export function AuditoriaTable() {
+interface AuditoriaTableProps {
+  registros: readonly RegistroBitacora[]
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function AuditoriaTable({ registros }: AuditoriaTableProps) {
   const [filtros, setFiltros] = useState<Filtros>({ operacion: "", tabla: "" })
 
-  const registrosFiltrados = AUDITORIA_MOCK.filter((r) => {
+  const registrosFiltrados = registros.filter((r) => {
     if (filtros.operacion && r.operacion !== filtros.operacion) return false
     if (filtros.tabla && r.tabla !== filtros.tabla) return false
     return true
@@ -168,7 +83,7 @@ export function AuditoriaTable() {
                 <TableRow key={registro.id}>
                   {/* Operación */}
                   <TableCell className="pl-4">
-                    <OperacionBadge operacion={registro.operacion} />
+                    <OperacionBadge operacion={registro.operacion as OperacionSQL} />
                   </TableCell>
 
                   {/* Tabla */}
@@ -178,27 +93,38 @@ export function AuditoriaTable() {
                     </span>
                   </TableCell>
 
-                  {/* Registro */}
+                  {/* Registro — format as #NNNN to match original style */}
                   <TableCell>
                     <span className="font-mono text-xs text-muted-foreground">
-                      {registro.registro}
+                      {registro.registro_id != null
+                        ? `#${registro.registro_id.padStart(4, "0")}`
+                        : "—"}
                     </span>
                   </TableCell>
 
-                  {/* Usuario BD */}
+                  {/* Usuario BD + operador_id when available */}
                   <TableCell>
                     <span className="font-mono text-xs text-foreground">
-                      {registro.usuarioBD}
+                      {registro.usuario_bd}
+                      {registro.operador_id != null && (
+                        <span className="ml-1 text-muted-foreground">
+                          (op:{registro.operador_id})
+                        </span>
+                      )}
                     </span>
                   </TableCell>
 
                   {/* Fecha / hora */}
                   <TableCell className="pr-4">
                     <time
-                      dateTime={registro.fechaHora.replace(" ", "T")}
+                      dateTime={
+                        registro.creado_en instanceof Date
+                          ? registro.creado_en.toISOString()
+                          : String(registro.creado_en)
+                      }
                       className="font-mono text-xs tabular-nums text-muted-foreground"
                     >
-                      {registro.fechaHora}
+                      {formatFecha(registro.creado_en)}
                     </time>
                   </TableCell>
                 </TableRow>
@@ -214,7 +140,7 @@ export function AuditoriaTable() {
             aria-atomic="true"
             className="font-mono text-xs text-muted-foreground"
           >
-            {registrosFiltrados.length} de {AUDITORIA_MOCK.length} registros
+            {registrosFiltrados.length} de {registros.length} registros
           </p>
         </div>
       </div>

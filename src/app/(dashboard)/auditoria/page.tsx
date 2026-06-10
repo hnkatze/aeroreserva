@@ -1,5 +1,6 @@
 import { ShieldCheckIcon } from "lucide-react"
 import { AuditoriaTable } from "@/components/auditoria/auditoria-table"
+import { listarBitacora } from "@/lib/bitacora"
 
 import type { Metadata } from "next"
 
@@ -8,7 +9,9 @@ export const metadata: Metadata = {
   description: "Registro automático de cada cambio en la base de datos.",
 }
 
-export default function AuditoriaPage() {
+export default async function AuditoriaPage() {
+  const registros = await listarBitacora({ limit: 100 })
+
   return (
     <div className="flex flex-col gap-8">
       {/* ── Encabezado ───────────────────────────────────────────── */}
@@ -29,7 +32,7 @@ export default function AuditoriaPage() {
 
       {/* ── Bitácora ─────────────────────────────────────────────── */}
       <section aria-label="Bitácora de auditoría">
-        <AuditoriaTable />
+        <AuditoriaTable registros={registros} />
       </section>
     </div>
   )
