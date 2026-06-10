@@ -13,6 +13,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { Vuelo } from "@/lib/vuelos"
+import { EstadoVueloBadge } from "@/components/vuelos/estado-vuelo-badge"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -33,11 +34,9 @@ function formatFecha(date: Date | string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Columnas eliminadas respecto al diseño original con mock:
- *   - Estado: no existe en la tabla `vuelos` de la DB.
- *   - Ocupación: requeriría un JOIN con `asientos`; fuera de scope de esta tarea.
- * Se mantienen: Vuelo (código + fecha), Aerolínea (derivada del prefijo), Ruta,
- * Salida/Llegada y la acción "Ver asientos".
+ * Columnas: Vuelo (código + fecha), Aerolínea, Ruta, Salida/Llegada,
+ * Estado (badge de color + retraso en minutos si aplica), y acción "Ver asientos".
+ * Ocupación se mantiene fuera de scope (requiere JOIN con asientos).
  */
 interface VuelosTableProps {
   vuelos: readonly Vuelo[]
@@ -55,6 +54,7 @@ export function VuelosTable({ vuelos }: VuelosTableProps) {
               <TableHead>Ruta</TableHead>
               <TableHead className="w-28">Salida</TableHead>
               <TableHead className="w-28">Llegada</TableHead>
+              <TableHead className="w-36">Estado</TableHead>
               <TableHead className="pr-5 w-32 text-right">Acción</TableHead>
             </TableRow>
           </TableHeader>
@@ -63,7 +63,7 @@ export function VuelosTable({ vuelos }: VuelosTableProps) {
             {vuelos.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="py-12 text-center text-sm text-muted-foreground"
                 >
                   No se encontraron vuelos para los filtros seleccionados.
@@ -116,6 +116,14 @@ export function VuelosTable({ vuelos }: VuelosTableProps) {
                     <span className="font-mono text-sm text-foreground">
                       {formatHora(vuelo.llegada)}
                     </span>
+                  </TableCell>
+
+                  {/* Estado */}
+                  <TableCell>
+                    <EstadoVueloBadge
+                      estado={vuelo.estado}
+                      retraso_min={vuelo.retraso_min}
+                    />
                   </TableCell>
 
                   {/* Acción */}

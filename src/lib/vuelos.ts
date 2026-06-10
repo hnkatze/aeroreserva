@@ -1,5 +1,13 @@
 import { query } from "@/lib/db";
 
+export type EstadoVuelo =
+  | "programado"
+  | "abordando"
+  | "despegado"
+  | "aterrizado"
+  | "retrasado"
+  | "cancelado";
+
 export interface Vuelo {
   id: number;
   codigo: string;
@@ -9,6 +17,8 @@ export interface Vuelo {
   llegada: Date;
   aerolinea_codigo: string | null;
   aerolinea_nombre: string | null;
+  estado: EstadoVuelo;
+  retraso_min: number;
 }
 
 export interface VuelosFiltros {
@@ -79,7 +89,9 @@ export async function listarVuelos(opts: VuelosListOptions = {}): Promise<Vuelo[
             v.salida,
             v.llegada,
             v.aerolinea_codigo,
-            a.nombre AS aerolinea_nombre
+            a.nombre AS aerolinea_nombre,
+            v.estado,
+            v.retraso_min
        FROM vuelos v
        LEFT JOIN aerolineas a ON a.codigo = v.aerolinea_codigo
       ${where}
@@ -115,7 +127,9 @@ export async function buscarVueloPorCodigo(codigo: string): Promise<Vuelo | null
             v.salida,
             v.llegada,
             v.aerolinea_codigo,
-            a.nombre AS aerolinea_nombre
+            a.nombre AS aerolinea_nombre,
+            v.estado,
+            v.retraso_min
        FROM vuelos v
        LEFT JOIN aerolineas a ON a.codigo = v.aerolinea_codigo
       WHERE v.codigo = $1
