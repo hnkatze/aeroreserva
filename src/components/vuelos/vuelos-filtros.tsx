@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { SearchIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,43 +14,47 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
+import type { Aeropuerto } from "@/lib/aeropuertos"
 
-// Aeropuertos de la región — MOCK: reemplazar con lookup de DB
-const AEROPUERTOS = [
-  { code: "EZE", label: "EZE — Buenos Aires (Ezeiza)" },
-  { code: "AEP", label: "AEP — Buenos Aires (Aeroparque)" },
-  { code: "GRU", label: "GRU — São Paulo (Guarulhos)" },
-  { code: "SCL", label: "SCL — Santiago de Chile" },
-  { code: "BOG", label: "BOG — Bogotá" },
-  { code: "MDE", label: "MDE — Medellín" },
-  { code: "LIM", label: "LIM — Lima" },
-  { code: "PTY", label: "PTY — Ciudad de Panamá" },
-  { code: "GUA", label: "GUA — Ciudad de Guatemala" },
-  { code: "MVD", label: "MVD — Montevideo" },
-  { code: "UIO", label: "UIO — Quito" },
-  { code: "CCS", label: "CCS — Caracas" },
-  { code: "CUN", label: "CUN — Cancún" },
-  { code: "MEX", label: "MEX — Ciudad de México" },
-] as const
+// Sentinel value used to represent "no selection" in the Select component.
+// An empty string triggers the placeholder but shadcn/radix Select requires a
+// non-empty string as the value for controlled mode; we use this constant and
+// translate it back to "" before building the URL.
+const NO_FILTER = "_all_"
 
 interface VuelosFiltrosProps {
-  onBuscar?: (filtros: { origen: string; destino: string; fecha: string }) => void
+  aeropuertos: Aeropuerto[]
+  initialOrigen?: string
+  initialDestino?: string
+  initialFecha?: string
 }
 
-export function VuelosFiltros({ onBuscar }: VuelosFiltrosProps) {
-  const [origen, setOrigen] = useState("")
-  const [destino, setDestino] = useState("")
-  const [fecha, setFecha] = useState("")
+export function VuelosFiltros({
+  aeropuertos,
+  initialOrigen = "",
+  initialDestino = "",
+  initialFecha = "",
+}: VuelosFiltrosProps) {
+  const router = useRouter()
+  const [origen, setOrigen] = useState(initialOrigen || NO_FILTER)
+  const [destino, setDestino] = useState(initialDestino || NO_FILTER)
+  const [fecha, setFecha] = useState(initialFecha)
 
-  function handleBuscar() {
-    onBuscar?.({ origen, destino, fecha })
+  function handleBuscar(e: React.FormEvent) {
+    e.preventDefault()
+    const params = new URLSearchParams()
+    if (origen && origen !== NO_FILTER) params.set("origen", origen)
+    if (destino && destino !== NO_FILTER) params.set("destino", destino)
+    if (fecha) params.set("fecha", fecha)
+    params.set("page", "1")
+    router.push(`/vuelos?${params.toString()}`)
   }
 
   return (
     <Card>
       <CardContent className="px-5 py-4">
         <form
-          onSubmit={(e) => { e.preventDefault(); handleBuscar() }}
+          onSubmit={handleBuscar}
           aria-label="Filtros de búsqueda de vuelos"
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
@@ -58,14 +63,15 @@ export function VuelosFiltros({ onBuscar }: VuelosFiltrosProps) {
               <Label htmlFor="filtro-origen" className="text-xs font-medium text-muted-foreground">
                 Origen
               </Label>
-              <Select value={origen} onValueChange={(v) => setOrigen(v ?? "")}>
+              <Select value={origen} onValueChange={(v) => setOrigen(v ?? NO_FILTER)}>
                 <SelectTrigger id="filtro-origen" className="h-9 text-sm">
-                  <SelectValue placeholder="Seleccioná origen" />
+                  <SelectValue placeholder="Todos los orígenes" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AEROPUERTOS.map((a) => (
-                    <SelectItem key={a.code} value={a.code}>
-                      {a.label}
+                  <SelectItem value={NO_FILTER}>Todos los orígenes</SelectItem>
+                  {aeropuertos.map((a) => (
+                    <SelectItem key={a.codigo} value={a.codigo}>
+                      {a.codigo}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -77,14 +83,15 @@ export function VuelosFiltros({ onBuscar }: VuelosFiltrosProps) {
               <Label htmlFor="filtro-destino" className="text-xs font-medium text-muted-foreground">
                 Destino
               </Label>
-              <Select value={destino} onValueChange={(v) => setDestino(v ?? "")}>
+              <Select value={destino} onValueChange={(v) => setDestino(v ?? NO_FILTER)}>
                 <SelectTrigger id="filtro-destino" className="h-9 text-sm">
-                  <SelectValue placeholder="Seleccioná destino" />
+                  <SelectValue placeholder="Todos los destinos" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AEROPUERTOS.map((a) => (
-                    <SelectItem key={a.code} value={a.code}>
-                      {a.label}
+                  <SelectItem value={NO_FILTER}>Todos los destinos</SelectItem>
+                  {aeropuertos.map((a) => (
+                    <SelectItem key={a.codigo} value={a.codigo}>
+                      {a.codigo}
                     </SelectItem>
                   ))}
                 </SelectContent>

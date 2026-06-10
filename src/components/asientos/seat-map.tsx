@@ -7,30 +7,11 @@ import { SeatLegend } from "./seat-legend"
 import { SeatDetailPanel } from "./seat-detail-panel"
 import {
   COLUMNS,
-  EXECUTIVE_ROWS,
-  OCCUPIED_SEATS,
-  TOTAL_ROWS,
   type Seat,
   type SeatStats,
+  type SeatInput,
+  buildSeatsFromData,
 } from "./seat-types"
-
-// Build the full seat grid from mock data
-function buildSeats(): Seat[] {
-  const seats: Seat[] = []
-  for (let row = 1; row <= TOTAL_ROWS; row++) {
-    for (const col of COLUMNS) {
-      const id = `${row}${col}`
-      seats.push({
-        id,
-        row,
-        col,
-        clase: EXECUTIVE_ROWS.has(row) ? "ejecutiva" : "economica",
-        status: OCCUPIED_SEATS.has(id) ? "ocupado" : "libre",
-      })
-    }
-  }
-  return seats
-}
 
 // Left aisle cols A,B,C — right aisle cols D,E,F
 const LEFT_COLS = ["A", "B", "C"] as const
@@ -38,13 +19,17 @@ const RIGHT_COLS = ["D", "E", "F"] as const
 
 interface SeatMapProps {
   flightLabel?: string
+  /**
+   * Seat data from the database. When provided the map renders real occupancy
+   * instead of the mock data.
+   */
+  seats?: SeatInput[]
 }
 
-export function SeatMap({ flightLabel }: SeatMapProps) {
+export function SeatMap({ flightLabel, seats: seatsProp }: SeatMapProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  // Seats are static (mock) — build once
-  const seats = useMemo(() => buildSeats(), [])
+  const seats = useMemo(() => buildSeatsFromData(seatsProp ?? []), [seatsProp])
 
   const seatById = useMemo(
     () => new Map(seats.map((s) => [s.id, s])),
@@ -61,13 +46,19 @@ export function SeatMap({ flightLabel }: SeatMapProps) {
       total,
       ocupados,
       libres,
-      pct: Math.round((ocupados / total) * 100),
+      pct: total > 0 ? Math.round((ocupados / total) * 100) : 0,
     }
   }, [seats])
 
   function handleSelect(id: string) {
     setSelectedId((prev) => (prev === id ? null : id))
   }
+
+  // Derive total rows from the data so the map adapts to any plane config
+  const totalRows = useMemo(() => {
+    if (seats.length === 0) return 0
+    return Math.max(...seats.map((s) => s.row))
+  }, [seats])
 
   const rowMap = useMemo(() => {
     const map = new Map<number, Seat[]>()
@@ -77,6 +68,24 @@ export function SeatMap({ flightLabel }: SeatMapProps) {
     }
     return map
   }, [seats])
+
+  // Derive executive rows from the data (clase === "ejecutiva")
+  const executiveRows = useMemo(() => {
+    const rows = new Set<number>()
+    for (const seat of seats) {
+      if (seat.clase === "ejecutiva") rows.add(seat.row)
+    }
+    return rows
+  }, [seats])
+
+  if (seats.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border px-8 py-16 text-center text-sm text-muted-foreground">
+        <PlaneIcon className="h-8 w-8 text-muted-foreground/50" aria-hidden="true" />
+        <p>No hay asientos cargados para este vuelo.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -133,7 +142,7 @@ export function SeatMap({ flightLabel }: SeatMapProps) {
 
             {/* Rows */}
             <ol aria-label="Filas de asientos" className="flex flex-col gap-2">
-              {Array.from({ length: TOTAL_ROWS }, (_, i) => i + 1).map((row) => {
+              {Array.from({ length: totalRows }, (_, i) => i + 1).map((row) => {
                 const rowSeats = rowMap.get(row) ?? []
                 const leftSeats = rowSeats.filter((s) =>
                   (LEFT_COLS as readonly string[]).includes(s.col)
@@ -141,7 +150,7 @@ export function SeatMap({ flightLabel }: SeatMapProps) {
                 const rightSeats = rowSeats.filter((s) =>
                   (RIGHT_COLS as readonly string[]).includes(s.col)
                 )
-                const isExecutiveRow = EXECUTIVE_ROWS.has(row)
+                const isExecutiveRow = executiveRows.has(row)
 
                 return (
                   <li key={row} className="flex items-center">
@@ -227,3 +236,5 @@ export function SeatMap({ flightLabel }: SeatMapProps) {
     </div>
   )
 }
+
+export { COLUMNS }
