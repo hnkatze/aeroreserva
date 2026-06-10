@@ -12,146 +12,61 @@ import {
 } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { EstadoVueloBadge, type EstadoVuelo } from "@/components/dashboard/estado-vuelo-badge"
-import { cn } from "@/lib/utils"
+import type { Vuelo } from "@/lib/vuelos"
 
-// MOCK: reemplazar cuando exista el catálogo de vuelos
-export interface VueloCompleto {
-  id: string
-  codigo: string
-  aerolinea: string
-  origen: string
-  destino: string
-  salida: string        // "HH:MM"
-  fecha: string         // "DD/MM/YYYY"
-  estado: EstadoVuelo
-  ocupacion: number     // 0-100
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Map IATA airline prefix (first 2 chars of flight code) to full name.
+ * Unknown prefixes fall back to the prefix itself.
+ */
+const AIRLINE_NAMES: Readonly<Record<string, string>> = {
+  LA: "LATAM",
+  AR: "Aerolíneas Argentinas",
+  AV: "Avianca",
+  CM: "Copa Airlines",
+  AA: "American Airlines",
+  UA: "United Airlines",
+  DL: "Delta Air Lines",
+  IB: "Iberia",
+  JJ: "LATAM Brasil",
+  G3: "Gol",
+  AD: "Azul",
+} as const
+
+function airlineName(codigo: string): string {
+  const prefix = codigo.slice(0, 2).toUpperCase()
+  return AIRLINE_NAMES[prefix] ?? prefix
 }
 
-// MOCK: reemplazar cuando exista el catálogo de vuelos
-const VUELOS_MOCK: VueloCompleto[] = [
-  {
-    id: "1",
-    codigo: "LA4401",
-    aerolinea: "LATAM",
-    origen: "EZE",
-    destino: "SCL",
-    salida: "06:30",
-    fecha: "09/06/2026",
-    estado: "programado",
-    ocupacion: 72,
-  },
-  {
-    id: "2",
-    codigo: "AR1304",
-    aerolinea: "Aerolíneas Argentinas",
-    origen: "AEP",
-    destino: "GRU",
-    salida: "08:40",
-    fecha: "09/06/2026",
-    estado: "programado",
-    ocupacion: 78,
-  },
-  {
-    id: "3",
-    codigo: "AV8821",
-    aerolinea: "Avianca",
-    origen: "BOG",
-    destino: "MDE",
-    salida: "09:15",
-    fecha: "09/06/2026",
-    estado: "retrasado",
-    ocupacion: 93,
-  },
-  {
-    id: "4",
-    codigo: "LA5502",
-    aerolinea: "LATAM",
-    origen: "EZE",
-    destino: "LIM",
-    salida: "10:00",
-    fecha: "09/06/2026",
-    estado: "programado",
-    ocupacion: 65,
-  },
-  {
-    id: "5",
-    codigo: "CM3317",
-    aerolinea: "Copa Airlines",
-    origen: "PTY",
-    destino: "GUA",
-    salida: "11:30",
-    fecha: "09/06/2026",
-    estado: "cancelado",
-    ocupacion: 0,
-  },
-  {
-    id: "6",
-    codigo: "AR0701",
-    aerolinea: "Aerolíneas Argentinas",
-    origen: "AEP",
-    destino: "MVD",
-    salida: "12:45",
-    fecha: "09/06/2026",
-    estado: "programado",
-    ocupacion: 55,
-  },
-  {
-    id: "7",
-    codigo: "LA9940",
-    aerolinea: "LATAM",
-    origen: "SCL",
-    destino: "UIO",
-    salida: "14:20",
-    fecha: "09/06/2026",
-    estado: "retrasado",
-    ocupacion: 88,
-  },
-  {
-    id: "8",
-    codigo: "AV2206",
-    aerolinea: "Avianca",
-    origen: "BOG",
-    destino: "PTY",
-    salida: "16:05",
-    fecha: "09/06/2026",
-    estado: "programado",
-    ocupacion: 41,
-  },
-]
-
-function OcupacionBar({ pct }: { pct: number }) {
-  const isHigh = pct >= 90
-
-  return (
-    <div className="flex items-center gap-2" aria-label={`Ocupación: ${pct}%`}>
-      {/* Track */}
-      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            isHigh ? "bg-amber-500" : "bg-primary",
-          )}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span
-        className={cn(
-          "w-9 text-right font-mono text-xs",
-          isHigh ? "font-semibold text-[#14275C]" : "text-muted-foreground",
-        )}
-      >
-        {pct}%
-      </span>
-    </div>
-  )
+function formatHora(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date
+  return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })
 }
 
+function formatFecha(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date
+  return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
+}
+
+// ---------------------------------------------------------------------------
+// VuelosTable
+// ---------------------------------------------------------------------------
+
+/**
+ * Columnas eliminadas respecto al diseño original con mock:
+ *   - Estado: no existe en la tabla `vuelos` de la DB.
+ *   - Ocupación: requeriría un JOIN con `asientos`; fuera de scope de esta tarea.
+ * Se mantienen: Vuelo (código + fecha), Aerolínea (derivada del prefijo), Ruta,
+ * Salida/Llegada y la acción "Ver asientos".
+ */
 interface VuelosTableProps {
-  vuelos?: VueloCompleto[]
+  vuelos: readonly Vuelo[]
 }
 
-export function VuelosTable({ vuelos = VUELOS_MOCK }: VuelosTableProps) {
+export function VuelosTable({ vuelos }: VuelosTableProps) {
   return (
     <Card>
       <CardContent className="px-0 pb-0">
@@ -162,8 +77,7 @@ export function VuelosTable({ vuelos = VUELOS_MOCK }: VuelosTableProps) {
               <TableHead>Aerolínea</TableHead>
               <TableHead>Ruta</TableHead>
               <TableHead className="w-28">Salida</TableHead>
-              <TableHead className="w-32">Estado</TableHead>
-              <TableHead className="w-36">Ocupación</TableHead>
+              <TableHead className="w-28">Llegada</TableHead>
               <TableHead className="pr-5 w-32 text-right">Acción</TableHead>
             </TableRow>
           </TableHeader>
@@ -172,7 +86,7 @@ export function VuelosTable({ vuelos = VUELOS_MOCK }: VuelosTableProps) {
             {vuelos.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="py-12 text-center text-sm text-muted-foreground"
                 >
                   No se encontraron vuelos para los filtros seleccionados.
@@ -181,21 +95,23 @@ export function VuelosTable({ vuelos = VUELOS_MOCK }: VuelosTableProps) {
             ) : (
               vuelos.map((vuelo) => (
                 <TableRow key={vuelo.id}>
-                  {/* Código */}
+                  {/* Código + fecha */}
                   <TableCell className="pl-5">
                     <div className="flex flex-col gap-0.5">
                       <span className="font-mono text-sm font-semibold text-foreground">
                         {vuelo.codigo}
                       </span>
                       <span className="text-[11px] text-muted-foreground">
-                        {vuelo.fecha}
+                        {formatFecha(vuelo.salida)}
                       </span>
                     </div>
                   </TableCell>
 
                   {/* Aerolínea */}
                   <TableCell>
-                    <span className="text-sm text-foreground">{vuelo.aerolinea}</span>
+                    <span className="text-sm text-foreground">
+                      {airlineName(vuelo.codigo)}
+                    </span>
                   </TableCell>
 
                   {/* Ruta */}
@@ -213,17 +129,16 @@ export function VuelosTable({ vuelos = VUELOS_MOCK }: VuelosTableProps) {
 
                   {/* Salida */}
                   <TableCell>
-                    <span className="font-mono text-sm text-foreground">{vuelo.salida}</span>
+                    <span className="font-mono text-sm text-foreground">
+                      {formatHora(vuelo.salida)}
+                    </span>
                   </TableCell>
 
-                  {/* Estado */}
+                  {/* Llegada */}
                   <TableCell>
-                    <EstadoVueloBadge estado={vuelo.estado} />
-                  </TableCell>
-
-                  {/* Ocupación */}
-                  <TableCell>
-                    <OcupacionBar pct={vuelo.ocupacion} />
+                    <span className="font-mono text-sm text-foreground">
+                      {formatHora(vuelo.llegada)}
+                    </span>
                   </TableCell>
 
                   {/* Acción */}

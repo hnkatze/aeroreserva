@@ -9,13 +9,33 @@ export interface Vuelo {
   llegada: Date;
 }
 
+export interface VuelosListOptions {
+  limit?: number;
+  offset?: number;
+}
+
 /**
- * Return all flights ordered by departure time.
+ * Return a paginated list of flights ordered by departure time.
+ * Defaults: limit = 25, offset = 0.
  */
-export async function listarVuelos(): Promise<Vuelo[]> {
+export async function listarVuelos(opts: VuelosListOptions = {}): Promise<Vuelo[]> {
+  const limit = opts.limit ?? 25;
+  const offset = opts.offset ?? 0;
   return query<Vuelo>(
     `SELECT id, codigo, origen, destino, salida, llegada
        FROM vuelos
-      ORDER BY salida ASC`,
+      ORDER BY salida ASC
+      LIMIT $1 OFFSET $2`,
+    [limit, offset],
   );
+}
+
+/**
+ * Return the total count of flights.
+ */
+export async function contarVuelos(): Promise<number> {
+  const rows = await query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM vuelos`,
+  );
+  return rows[0]?.n ?? 0;
 }
