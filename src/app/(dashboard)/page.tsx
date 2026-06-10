@@ -8,7 +8,9 @@ import {
 } from "lucide-react"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { ProximosVuelosTable } from "@/components/dashboard/proximos-vuelos-table"
+import { EstadoVuelosChart } from "@/components/dashboard/estado-vuelos-chart"
 import { kpisDashboard, proximosVuelos } from "@/lib/dashboard"
+import { vuelosPorEstado } from "@/lib/reportes"
 
 export const metadata: Metadata = {
   title: "Inicio",
@@ -17,10 +19,11 @@ export const metadata: Metadata = {
 
 export default async function DashboardHomePage() {
   // Layout already validates auth; this call is safe and returns the operator
-  const [operator, kpis, vuelos] = await Promise.all([
+  const [operator, kpis, vuelos, estados] = await Promise.all([
     getCurrentOperator(),
     kpisDashboard(),
     proximosVuelos({ limit: 8 }),
+    vuelosPorEstado(),
   ])
 
   const ocupacionLabel =
@@ -80,6 +83,11 @@ export default async function DashboardHomePage() {
             />
           </li>
         </ul>
+      </section>
+
+      {/* ── Estado de vuelos chart ────────────────────────────────── */}
+      <section aria-label="Distribución de vuelos por estado operativo">
+        <EstadoVuelosChart estados={estados} />
       </section>
 
       {/* ── Upcoming flights ──────────────────────────────────────── */}
