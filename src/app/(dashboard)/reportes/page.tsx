@@ -8,9 +8,17 @@ import {
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { OcupacionBarChart } from "@/components/reportes/ocupacion-bar-chart"
 import { ResumenTable } from "@/components/reportes/resumen-table"
+import { EstadoBreakdown } from "@/components/reportes/estado-breakdown"
+import { TopRutasTable } from "@/components/reportes/top-rutas-table"
+import { RetrasoAerolineaTable } from "@/components/reportes/retraso-aerolinea-table"
+import { TopAeropuertosTable } from "@/components/reportes/top-aeropuertos-table"
 import {
   ocupacionPorVuelo,
   resumenKpis,
+  vuelosPorEstado,
+  ocupacionPorRuta,
+  retrasoPorAerolinea,
+  topAeropuertos,
 } from "@/lib/reportes"
 
 export const metadata: Metadata = {
@@ -21,19 +29,29 @@ export const metadata: Metadata = {
 /**
  * Página de reportes — Server Component asíncrono.
  *
- * Carga en paralelo los top-20 vuelos por ocupación y los KPIs globales.
+ * Carga en paralelo todas las queries necesarias para las secciones:
+ *   1. KPI cards              — resumenKpis()
+ *   2. Gráfico de ocupación   — ocupacionPorVuelo()
+ *   3. Tabla de vuelos        — (reutiliza vuelos del gráfico)
+ *   4. Desglose por estado    — vuelosPorEstado()
+ *   5. Top rutas              — ocupacionPorRuta()
+ *   6. Puntualidad            — retrasoPorAerolinea()
+ *   7. Top aeropuertos        — topAeropuertos()
+ *
  * Si alguna query falla, Next.js propaga el error al error boundary más
  * cercano (error.tsx); no necesitamos try/catch aquí.
- *
- * Los datos se comparten entre OcupacionBarChart y ResumenTable para
- * evitar dos queries separadas a la misma vista.
  */
 export default async function ReportesPage() {
-  // Parallel data fetching — ambas queries son independientes
-  const [vuelos, kpis] = await Promise.all([
-    ocupacionPorVuelo({ limit: 20 }),
-    resumenKpis(),
-  ])
+  // Parallel data fetching — todas las queries son independientes
+  const [vuelos, kpis, estados, rutas, retrasos, aeropuertos] =
+    await Promise.all([
+      ocupacionPorVuelo({ limit: 20 }),
+      resumenKpis(),
+      vuelosPorEstado(),
+      ocupacionPorRuta({ limit: 15 }),
+      retrasoPorAerolinea(),
+      topAeropuertos({ limit: 10 }),
+    ])
 
   // Construir los KPI cards a partir de datos reales
   const kpiItems = [
@@ -107,6 +125,26 @@ export default async function ReportesPage() {
       {/* ── Tabla resumen ─────────────────────────────────────────── */}
       <section aria-label="Tabla resumen de vuelos">
         <ResumenTable vuelos={vuelos} />
+      </section>
+
+      {/* ── Desglose por estado operativo ─────────────────────────── */}
+      <section aria-label="Distribución de vuelos por estado operativo">
+        <EstadoBreakdown estados={estados} />
+      </section>
+
+      {/* ── Top rutas por ocupación ───────────────────────────────── */}
+      <section aria-label="Top rutas por porcentaje de ocupación">
+        <TopRutasTable rutas={rutas} />
+      </section>
+
+      {/* ── Puntualidad por aerolínea ─────────────────────────────── */}
+      <section aria-label="Puntualidad por aerolínea">
+        <RetrasoAerolineaTable aerolineas={retrasos} />
+      </section>
+
+      {/* ── Top aeropuertos por tráfico ───────────────────────────── */}
+      <section aria-label="Top aeropuertos por tráfico">
+        <TopAeropuertosTable aeropuertos={aeropuertos} />
       </section>
     </div>
   )
