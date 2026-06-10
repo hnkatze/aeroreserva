@@ -69,6 +69,7 @@ src/
   - `007_bitacora.sql` — `bitacora` + función trigger `registrar_bitacora()` (SECURITY DEFINER) + triggers en reservas/asientos/pasajeros
   - `008_lista_espera.sql` — `lista_espera` + función/trigger `promover_lista_espera()` (promoción automática al cancelar)
   - `009_reportes.sql` — vistas `v_ocupacion_vuelo`, `v_ocupacion_aerolinea`, `v_resumen_kpis`
+  - `010_estado_vuelo.sql` — `vuelos.estado` (programado/abordando/despegado/aterrizado/retrasado/cancelado) + `retraso_min`
   - (no existe `004`; quedó hueco en la numeración)
 - **Auth:** login de extremo a extremo, password scrypt, sesiones server-side en `sesiones`.
   Protección de rutas en `src/proxy.ts` (chequeo optimista de cookie → redirect a `/login`).
@@ -129,6 +130,9 @@ la cuenta `gh` de `hnkatze` y pushear por HTTPS.
 - ~6.071 **aeropuertos** reales (IATA) · 6.667 **vuelos** · **1.000.050 asientos** (150/vuelo)
 - 5 **aerolíneas** (ICAO): TOM=Thomsonfly, TCX=Thomas Cook, IOS=Isles of Scilly Skybus,
   NHG=NHT Lineas Aereas, ABJ=Abaet.
+- **Ruido de demo** (`db/seed-ruido.mjs`): ~4.350 reservas confirmadas en ~70 vuelos
+  (ocupación variada, hasta ~95%), y estados variados (retrasado/abordando/despegado/
+  aterrizado/cancelado) en ~420 vuelos.
 
 **Scripts** (se corren con `node`, no hay tarea npm):
 | Script | Para qué |
@@ -211,6 +215,13 @@ Pendiente (ordenado por dependencia / valor):
 - **Las reglas en `.claude/rules/` mezclan ejemplos de Angular** — es React/Next: aplicar el
   *principio*, no la API de Angular.
 - **Metadata sólo en Server Components** — `/login` es Client Component.
+- **Paginación en todos los listados** — `/vuelos`, `/reservas`, `/auditoria`, `/lista-espera`,
+  `/usuarios` paginan server-side (25/pág, `?page`) con `listarX({limit,offset})` + `contarX()`.
+  No traer tablas enteras es parte de administrar bien la DB.
+- **KPI de ocupación global ≈ 0%** — hay 1M de asientos y ~4.3k reservas, así que el % global
+  redondea a 0. La ocupación real y variada se ve **por vuelo / por aerolínea** (vistas), no en
+  el agregado global. Si la demo necesita un % global vistoso, reducir el catálogo o calcular el
+  KPI solo sobre vuelos con reservas.
 
 ---
 
