@@ -231,6 +231,7 @@ export function VuelosTable({ vuelos = VUELOS_MOCK }: VuelosTableProps) {
                       variant="outline"
                       size="sm"
                       className="h-7 text-xs"
+                      nativeButton={false}
                       render={<Link href={`/asientos?vuelo=${vuelo.codigo}`} />}
                     >
                       Ver asientos
