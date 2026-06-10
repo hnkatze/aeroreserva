@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { MoreHorizontalIcon, EyeIcon, XCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -56,12 +58,33 @@ interface ReservaActionsMenuProps {
 }
 
 function ReservaActionsMenu({ reserva }: ReservaActionsMenuProps) {
+  const router = useRouter()
+  const [cancelando, setCancelando] = useState(false)
+
   function handleVer() {
     toast.info(`Ver reserva #${reserva.id} — ${reserva.vuelo_codigo}`)
   }
 
-  function handleCancelar() {
-    toast.error(`Reserva #${reserva.id} cancelada (demo)`)
+  async function handleCancelar() {
+    if (cancelando) return
+    setCancelando(true)
+    try {
+      const res = await fetch(`/api/reservas/${reserva.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "cancelar" }),
+      })
+      if (res.ok) {
+        toast.success("Reserva cancelada")
+        router.refresh()
+      } else {
+        toast.error("No se pudo cancelar la reserva")
+      }
+    } catch {
+      toast.error("No se pudo cancelar la reserva")
+    } finally {
+      setCancelando(false)
+    }
   }
 
   return (
@@ -85,11 +108,11 @@ function ReservaActionsMenu({ reserva }: ReservaActionsMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
-          onClick={handleCancelar}
-          disabled={reserva.estado === "cancelada"}
+          onClick={() => { void handleCancelar() }}
+          disabled={reserva.estado === "cancelada" || cancelando}
         >
           <XCircleIcon className="h-4 w-4" aria-hidden="true" />
-          Cancelar
+          {cancelando ? "Cancelando…" : "Cancelar"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
