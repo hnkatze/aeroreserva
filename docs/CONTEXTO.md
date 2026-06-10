@@ -96,6 +96,7 @@ src/
 | **Lista de espera** | ✅ **Real (DB)** | Tabla `lista_espera` + trigger PL/pgSQL que promueve automáticamente al cancelarse una reserva. |
 | **Auditoría** (bitácora) | ✅ **Real (DB)** | Triggers AFTER INSERT/UPDATE/DELETE en reservas/asientos/pasajeros → `bitacora` (JSONB old/new + operador vía `app.current_operator`). `/auditoria` conectada. |
 | **Roles/permisos DB** | ✅ **Real (motor)** | 3 roles Postgres con GRANT/REVOKE por tabla (`db/demo-roles.mjs` lo demuestra). La app aún se conecta como `postgres`. |
+| **Modelo de datos (ER)** | ✅ **Real (DB)** | `/esquema`: diagrama ER interactivo (React Flow) generado leyendo `information_schema` — 10 tablas, 11 FKs. |
 | Laboratorio de concurrencia | 🟡 **Simulación** | Anima escenarios **sin** ejecutar SQL real. |
 
 ---
@@ -222,6 +223,9 @@ Pendiente (ordenado por dependencia / valor):
   **verticales** (columnas). Son `"use client"`; las páginas Server pasan los datos por props.
   Gotcha: una captura `fullPage` de Playwright puede mostrarlos vacíos (el resize colapsa el
   `ResponsiveContainer`) — es artefacto de la captura, en el navegador renderizan bien.
+- **Diagrama ER (React Flow)** — `/esquema` usa `@xyflow/react` + dagre; `src/lib/esquema.ts` lee
+  tablas/columnas/FKs de `information_schema`. React Flow necesita un contenedor con ALTURA
+  EXPLÍCITA (`h-[calc(100vh-13rem)]`); con `flex-1`/`h-full` colapsa a 0 y el lienzo queda vacío.
 - **Paginación en todos los listados** — `/vuelos`, `/reservas`, `/auditoria`, `/lista-espera`,
   `/usuarios` paginan server-side (25/pág, `?page`) con `listarX({limit,offset})` + `contarX()`.
   No traer tablas enteras es parte de administrar bien la DB.
