@@ -225,6 +225,9 @@ Pendiente (ordenado por dependencia / valor):
 - **Paginación en todos los listados** — `/vuelos`, `/reservas`, `/auditoria`, `/lista-espera`,
   `/usuarios` paginan server-side (25/pág, `?page`) con `listarX({limit,offset})` + `contarX()`.
   No traer tablas enteras es parte de administrar bien la DB.
+- **Select de vuelo = combobox con búsqueda** — con 6.667 vuelos un `<Select>` no sirve (y con
+  la paginación solo traería 25). El diálogo de Nueva Reserva usa `vuelo-combobox.tsx` que busca
+  **server-side** con debounce 250ms contra `GET /api/vuelos?q=` (filtra por código/origen/destino).
 - **KPI de ocupación global ≈ 0%** — hay 1M de asientos y ~4.3k reservas, así que el % global
   redondea a 0. La ocupación real y variada se ve **por vuelo / por aerolínea** (vistas), no en
   el agregado global. Si la demo necesita un % global vistoso, reducir el catálogo o calcular el
