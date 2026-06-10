@@ -83,142 +83,138 @@ export function SeatMap({ flightLabel }: SeatMapProps) {
       {/* Legend */}
       <SeatLegend />
 
-      {/* Two-column layout: map + detail */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+      {/* Map + detail — centered as a block so the cabin doesn't drift left */}
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-center lg:gap-12">
         {/* ── Seat Map ───────────────────────────────────────────── */}
         <section
           aria-label="Mapa de asientos del avión"
-          className="w-full overflow-x-auto lg:flex-1"
+          className="w-full overflow-x-auto lg:w-auto"
         >
-          {/* Front-of-plane indicator */}
-          <div
-            className="mb-4 flex flex-col items-center gap-1"
-            aria-hidden="true"
-          >
-            <div className="flex h-7 w-24 items-end justify-center rounded-t-[2.5rem] border border-b-0 border-border bg-muted/50">
-              <PlaneIcon className="mb-1 h-4 w-4 text-muted-foreground" />
+          <div className="mx-auto w-fit">
+            {/* Front-of-plane indicator */}
+            <div
+              className="mb-4 flex flex-col items-center gap-1"
+              aria-hidden="true"
+            >
+              <div className="flex h-8 w-28 items-end justify-center rounded-t-[2.5rem] border border-b-0 border-border bg-muted/50">
+                <PlaneIcon className="mb-1.5 h-4 w-4 text-muted-foreground" />
+              </div>
+              <span className="font-mono text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                Frente
+              </span>
             </div>
-            <span className="font-mono text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-              Frente
-            </span>
+
+            {/* Column header */}
+            <div className="mb-2 flex items-center" aria-hidden="true">
+              <div className="w-10 shrink-0" />
+              <div className="flex gap-3">
+                {LEFT_COLS.map((col) => (
+                  <div
+                    key={col}
+                    className="flex h-6 w-11 items-center justify-center font-mono text-xs font-semibold text-muted-foreground"
+                  >
+                    {col}
+                  </div>
+                ))}
+              </div>
+              <div className="w-24" />
+              <div className="flex gap-3">
+                {RIGHT_COLS.map((col) => (
+                  <div
+                    key={col}
+                    className="flex h-6 w-11 items-center justify-center font-mono text-xs font-semibold text-muted-foreground"
+                  >
+                    {col}
+                  </div>
+                ))}
+              </div>
+              <div className="ml-3 w-11 shrink-0" />
+            </div>
+
+            {/* Rows */}
+            <ol aria-label="Filas de asientos" className="flex flex-col gap-2">
+              {Array.from({ length: TOTAL_ROWS }, (_, i) => i + 1).map((row) => {
+                const rowSeats = rowMap.get(row) ?? []
+                const leftSeats = rowSeats.filter((s) =>
+                  (LEFT_COLS as readonly string[]).includes(s.col)
+                )
+                const rightSeats = rowSeats.filter((s) =>
+                  (RIGHT_COLS as readonly string[]).includes(s.col)
+                )
+                const isExecutiveRow = EXECUTIVE_ROWS.has(row)
+
+                return (
+                  <li key={row} className="flex items-center">
+                    {/* Row number */}
+                    <span
+                      className="w-10 shrink-0 font-mono text-xs text-muted-foreground"
+                      aria-label={`Fila ${row}`}
+                    >
+                      {row}
+                    </span>
+
+                    {/* Left block A B C */}
+                    <div
+                      className="flex gap-3"
+                      role="group"
+                      aria-label={`Fila ${row}, asientos A-C`}
+                    >
+                      {leftSeats.map((seat) => (
+                        <SeatButton
+                          key={seat.id}
+                          seat={seat}
+                          isSelected={selectedId === seat.id}
+                          onSelect={handleSelect}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Aisle — wide gap with a centered divider line */}
+                    <div
+                      className="flex w-24 items-stretch justify-center"
+                      aria-hidden="true"
+                    >
+                      <div className="w-px bg-border" />
+                    </div>
+
+                    {/* Right block D E F */}
+                    <div
+                      className="flex gap-3"
+                      role="group"
+                      aria-label={`Fila ${row}, asientos D-F`}
+                    >
+                      {rightSeats.map((seat) => (
+                        <SeatButton
+                          key={seat.id}
+                          seat={seat}
+                          isSelected={selectedId === seat.id}
+                          onSelect={handleSelect}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Executive badge — fixed-width slot keeps rows aligned */}
+                    <span className="ml-3 flex w-11 shrink-0 justify-start">
+                      {isExecutiveRow && (
+                        <span
+                          className="rounded-sm bg-indigo-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
+                          aria-label="Clase ejecutiva"
+                        >
+                          EJE
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
           </div>
-
-          {/* Column header */}
-          <div
-            className="mb-2 flex items-center justify-center"
-            aria-hidden="true"
-          >
-            <div className="w-8 shrink-0" />
-            <div className="flex gap-1">
-              {LEFT_COLS.map((col) => (
-                <div
-                  key={col}
-                  className="flex h-6 w-9 items-center justify-center font-mono text-xs font-semibold text-muted-foreground"
-                >
-                  {col}
-                </div>
-              ))}
-            </div>
-            <div className="mx-1 w-6" />
-            <div className="flex gap-1">
-              {RIGHT_COLS.map((col) => (
-                <div
-                  key={col}
-                  className="flex h-6 w-9 items-center justify-center font-mono text-xs font-semibold text-muted-foreground"
-                >
-                  {col}
-                </div>
-              ))}
-            </div>
-            <div className="ml-3 w-9 shrink-0" />
-          </div>
-
-          {/* Rows */}
-          <ol
-            aria-label="Filas de asientos"
-            className="flex flex-col items-center gap-1"
-          >
-            {Array.from({ length: TOTAL_ROWS }, (_, i) => i + 1).map((row) => {
-              const rowSeats = rowMap.get(row) ?? []
-              const leftSeats = rowSeats.filter((s) =>
-                (LEFT_COLS as readonly string[]).includes(s.col)
-              )
-              const rightSeats = rowSeats.filter((s) =>
-                (RIGHT_COLS as readonly string[]).includes(s.col)
-              )
-              const isExecutiveRow = EXECUTIVE_ROWS.has(row)
-
-              return (
-                <li key={row} className="flex items-center">
-                  {/* Row number */}
-                  <span
-                    className="w-8 shrink-0 font-mono text-xs text-muted-foreground"
-                    aria-label={`Fila ${row}`}
-                  >
-                    {row}
-                  </span>
-
-                  {/* Left block A B C */}
-                  <div
-                    className="flex gap-1"
-                    role="group"
-                    aria-label={`Fila ${row}, asientos A-C`}
-                  >
-                    {leftSeats.map((seat) => (
-                      <SeatButton
-                        key={seat.id}
-                        seat={seat}
-                        isSelected={selectedId === seat.id}
-                        onSelect={handleSelect}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Aisle — visible divider line */}
-                  <div
-                    className="mx-1 flex w-6 items-stretch justify-center"
-                    aria-hidden="true"
-                  >
-                    <div className="w-px bg-border" />
-                  </div>
-
-                  {/* Right block D E F */}
-                  <div
-                    className="flex gap-1"
-                    role="group"
-                    aria-label={`Fila ${row}, asientos D-F`}
-                  >
-                    {rightSeats.map((seat) => (
-                      <SeatButton
-                        key={seat.id}
-                        seat={seat}
-                        isSelected={selectedId === seat.id}
-                        onSelect={handleSelect}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Executive badge — indigo, fixed-width slot to keep rows aligned */}
-                  <span className="ml-3 flex w-9 shrink-0 justify-start">
-                    {isExecutiveRow && (
-                      <span
-                        className="rounded-sm bg-indigo-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
-                        aria-label="Clase ejecutiva"
-                      >
-                        EJE
-                      </span>
-                    )}
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
         </section>
 
         {/* ── Detail Panel (sticky) ───────────────────────────────── */}
         <aside
           aria-label="Detalle del asiento seleccionado"
-          className="w-full lg:sticky lg:top-6 lg:w-72 lg:shrink-0"
+          className="w-full lg:sticky lg:top-6 lg:w-80 lg:shrink-0"
         >
           <SeatDetailPanel
             seat={selectedSeat}

@@ -26,8 +26,8 @@ export function SeatButton({ seat, isSelected, onSelect }: SeatButtonProps) {
       disabled={isOccupied}
       onClick={() => !isOccupied && onSelect(seat.id)}
       className={cn(
-        // Base shape — 36px square
-        "flex h-9 w-9 items-center justify-center rounded-md border font-mono text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none",
+        // Base shape — 44px square
+        "flex h-11 w-11 items-center justify-center rounded-md border font-mono text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none",
         // Default: libre
         !isOccupied && !isSelected && !isExecutive &&
           "border-border bg-background text-foreground hover:bg-muted",
