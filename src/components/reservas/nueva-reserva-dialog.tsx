@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { PlusIcon } from "lucide-react"
 
@@ -24,76 +25,206 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-// MOCK — flight options for the select
-const VUELOS_MOCK = [
-  { id: "AR1204", label: "AR1204 — BUE → MIA (10:30)" },
-  { id: "AR0850", label: "AR0850 — BUE → SCL (08:15)" },
-  { id: "LA5502", label: "LA5502 — BUE → GRU (14:00)" },
-  { id: "AA7731", label: "AA7731 — BUE → JFK (22:45)" },
-  { id: "IB6612", label: "IB6612 — BUE → MAD (23:55)" },
-] as const
+// ---------------------------------------------------------------------------
+// API response DTOs — mirrors exactly what the route handlers return
+// ---------------------------------------------------------------------------
 
-// MOCK — seat options for the select
-const ASIENTOS_MOCK = [
-  "1A", "1B", "2C", "3D", "4A", "5B", "6C", "7A", "8D", "9E",
-  "10F", "11A", "12C", "15B", "18A", "22D",
-] as const
+interface VueloDto {
+  id: number
+  codigo: string
+  origen: string
+  destino: string
+  salida: string
+}
+
+interface AsientoDto {
+  id: number
+  numero: string
+  clase: string
+}
+
+// ---------------------------------------------------------------------------
+// Form state
+// ---------------------------------------------------------------------------
 
 interface FormState {
-  vuelo: string
+  vueloId: string
   nombre: string
   documento: string
-  asiento: string
+  asientoId: string
 }
 
 const EMPTY_FORM: FormState = {
-  vuelo: "",
+  vueloId: "",
   nombre: "",
   documento: "",
-  asiento: "",
+  asientoId: "",
 }
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function NuevaReservaDialog() {
+  const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [form, setForm] = React.useState<FormState>(EMPTY_FORM)
   const [fieldErrors, setFieldErrors] = React.useState<
     Partial<Record<keyof FormState, string>>
   >({})
+  const [raceError, setRaceError] = React.useState<string | null>(null)
 
-  // Reset form on open
+  const [vuelos, setVuelos] = React.useState<VueloDto[]>([])
+  const [loadingVuelos, setLoadingVuelos] = React.useState(false)
+  const [vuelosError, setVuelosError] = React.useState<string | null>(null)
+
+  const [asientos, setAsientos] = React.useState<AsientoDto[]>([])
+  const [loadingAsientos, setLoadingAsientos] = React.useState(false)
+
+  // ── Reset all state when the dialog closes ──────────────────────────────
+  // Done in the open-change handler rather than an effect: resetting state in
+  // response to a user event is not effect work (see "You Might Not Need an
+  // Effect"), and keeps the lint rule against synchronous setState in effects.
+  function resetForm() {
+    setForm(EMPTY_FORM)
+    setFieldErrors({})
+    setRaceError(null)
+    setVuelos([])
+    setAsientos([])
+    setVuelosError(null)
+  }
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next)
+    if (!next) resetForm()
+  }
+
+  // ── Fetch vuelos when dialog opens ──────────────────────────────────────
   React.useEffect(() => {
-    if (open) {
-      setForm(EMPTY_FORM)
-      setFieldErrors({})
+    if (!open) return
+
+    let cancelled = false
+
+    async function fetchVuelos() {
+      setLoadingVuelos(true)
+      setVuelosError(null)
+      try {
+        const res = await fetch("/api/vuelos")
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data: { vuelos: VueloDto[] } = await res.json()
+        if (!cancelled) setVuelos(data.vuelos)
+      } catch {
+        if (!cancelled) setVuelosError("No se pudo cargar la lista de vuelos.")
+      } finally {
+        if (!cancelled) setLoadingVuelos(false)
+      }
+    }
+
+    void fetchVuelos()
+    return () => {
+      cancelled = true
     }
   }, [open])
 
+  // ── Fetch asientos when a vuelo is selected ──────────────────────────────
+  async function fetchAsientosLibres(vueloId: string) {
+    setAsientos([])
+    setForm((f) => ({ ...f, asientoId: "" }))
+    setLoadingAsientos(true)
+    try {
+      const res = await fetch(
+        `/api/vuelos/${vueloId}/asientos?soloLibres=true`,
+      )
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data: { asientos: AsientoDto[] } = await res.json()
+      setAsientos(data.asientos)
+    } catch {
+      // Non-blocking — the asiento select will just be empty
+      setAsientos([])
+    } finally {
+      setLoadingAsientos(false)
+    }
+  }
+
+  function handleVueloChange(value: string | null) {
+    setForm((f) => ({ ...f, vueloId: value ?? "", asientoId: "" }))
+    setRaceError(null)
+    if (value) void fetchAsientosLibres(value)
+  }
+
+  // ── Validation ───────────────────────────────────────────────────────────
   function validate(): boolean {
     const errors: Partial<Record<keyof FormState, string>> = {}
-    if (!form.vuelo) errors.vuelo = "Seleccioná un vuelo"
+    if (!form.vueloId) errors.vueloId = "Seleccioná un vuelo"
     if (!form.nombre.trim()) errors.nombre = "El nombre es requerido"
     if (!form.documento.trim()) errors.documento = "El documento es requerido"
-    if (!form.asiento) errors.asiento = "Seleccioná un asiento"
+    if (!form.asientoId) errors.asientoId = "Seleccioná un asiento"
     setFieldErrors(errors)
     return Object.keys(errors).length === 0
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  // ── Submit ───────────────────────────────────────────────────────────────
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
 
+    setRaceError(null)
     setSaving(true)
-    // MOCK — simulate async save
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/reservas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vuelo_id: Number(form.vueloId),
+          asiento_id: Number(form.asientoId),
+          pasajero: {
+            nombre: form.nombre.trim(),
+            documento: form.documento.trim(),
+          },
+        }),
+      })
+
+      if (res.status === 201) {
+        router.refresh()
+        handleOpenChange(false)
+        toast.success("Reserva creada exitosamente")
+        return
+      }
+
+      // 409 — race condition: seat was taken while filling the form
+      if (res.status === 409) {
+        const body: { code?: string } = await res.json()
+        if (body.code === "ASIENTO_OCUPADO") {
+          setRaceError(
+            "El asiento fue reservado mientras completabas el formulario. Elegí otro.",
+          )
+          // Re-fetch available seats for the same flight (do NOT close)
+          void fetchAsientosLibres(form.vueloId)
+          return
+        }
+      }
+
+      // Other errors
+      let errorMsg = "No se pudo crear la reserva. Intentá nuevamente."
+      try {
+        const body: { error?: string } = await res.json()
+        if (body.error) errorMsg = body.error
+      } catch {
+        // ignore parse error, use default message
+      }
+      toast.error(errorMsg)
+    } catch {
+      toast.error("Error de red. Verificá tu conexión e intentá nuevamente.")
+    } finally {
       setSaving(false)
-      setOpen(false)
-      toast.success("Reserva creada (demo)")
-    }, 600)
+    }
   }
 
+  const isFormDisabled = saving || loadingVuelos
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
           <Button size="sm" />
@@ -108,43 +239,63 @@ export function NuevaReservaDialog() {
           <DialogTitle>Nueva reserva</DialogTitle>
         </DialogHeader>
 
+        {/* Race condition error — persists until user picks another seat */}
+        {raceError && (
+          <p
+            role="alert"
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {raceError}
+          </p>
+        )}
+
         <form id="reserva-form" onSubmit={handleSubmit} noValidate>
           <div className="flex flex-col gap-4 py-2">
             {/* Vuelo */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="rsv-vuelo">Vuelo</Label>
               <Select
-                value={form.vuelo}
-                onValueChange={(value) =>
-                  setForm((f) => ({ ...f, vuelo: value ?? "" }))
-                }
-                disabled={saving}
+                value={form.vueloId}
+                onValueChange={handleVueloChange}
+                disabled={isFormDisabled}
               >
                 <SelectTrigger
                   id="rsv-vuelo"
                   className="w-full"
                   aria-describedby={
-                    fieldErrors.vuelo ? "rsv-vuelo-error" : undefined
+                    fieldErrors.vueloId ? "rsv-vuelo-error" : undefined
                   }
-                  aria-invalid={fieldErrors.vuelo ? true : undefined}
+                  aria-invalid={fieldErrors.vueloId ? true : undefined}
                 >
-                  <SelectValue placeholder="Seleccioná un vuelo" />
+                  <SelectValue
+                    placeholder={
+                      loadingVuelos
+                        ? "Cargando vuelos…"
+                        : "Seleccioná un vuelo"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {VUELOS_MOCK.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.label}
+                  {vuelosError ? (
+                    <SelectItem value="__error__" disabled>
+                      {vuelosError}
                     </SelectItem>
-                  ))}
+                  ) : (
+                    vuelos.map((v) => (
+                      <SelectItem key={v.id} value={String(v.id)}>
+                        {`${v.codigo} — ${v.origen} → ${v.destino}`}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
-              {fieldErrors.vuelo && (
+              {fieldErrors.vueloId && (
                 <span
                   id="rsv-vuelo-error"
                   role="alert"
                   className="text-xs text-destructive"
                 >
-                  {fieldErrors.vuelo}
+                  {fieldErrors.vueloId}
                 </span>
               )}
             </div>
@@ -164,7 +315,7 @@ export function NuevaReservaDialog() {
                   fieldErrors.nombre ? "rsv-nombre-error" : undefined
                 }
                 aria-invalid={fieldErrors.nombre ? true : undefined}
-                disabled={saving}
+                disabled={isFormDisabled}
               />
               {fieldErrors.nombre && (
                 <span
@@ -192,7 +343,7 @@ export function NuevaReservaDialog() {
                   fieldErrors.documento ? "rsv-documento-error" : undefined
                 }
                 aria-invalid={fieldErrors.documento ? true : undefined}
-                disabled={saving}
+                disabled={isFormDisabled}
               />
               {fieldErrors.documento && (
                 <span
@@ -209,37 +360,51 @@ export function NuevaReservaDialog() {
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="rsv-asiento">Asiento</Label>
               <Select
-                value={form.asiento}
-                onValueChange={(value) =>
-                  setForm((f) => ({ ...f, asiento: value ?? "" }))
+                value={form.asientoId}
+                onValueChange={(value: string | null) =>
+                  setForm((f) => ({ ...f, asientoId: value ?? "" }))
                 }
-                disabled={saving}
+                disabled={isFormDisabled || !form.vueloId || loadingAsientos}
               >
                 <SelectTrigger
                   id="rsv-asiento"
                   className="w-full font-mono"
                   aria-describedby={
-                    fieldErrors.asiento ? "rsv-asiento-error" : undefined
+                    fieldErrors.asientoId ? "rsv-asiento-error" : undefined
                   }
-                  aria-invalid={fieldErrors.asiento ? true : undefined}
+                  aria-invalid={fieldErrors.asientoId ? true : undefined}
                 >
-                  <SelectValue placeholder="Seleccioná un asiento" />
+                  <SelectValue
+                    placeholder={
+                      !form.vueloId
+                        ? "Primero seleccioná un vuelo"
+                        : loadingAsientos
+                          ? "Cargando asientos…"
+                          : asientos.length === 0
+                            ? "Sin asientos disponibles"
+                            : "Seleccioná un asiento"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {ASIENTOS_MOCK.map((seat) => (
-                    <SelectItem key={seat} value={seat} className="font-mono">
-                      {seat}
+                  {asientos.map((a) => (
+                    <SelectItem
+                      key={a.id}
+                      value={String(a.id)}
+                      className="font-mono"
+                    >
+                      {`${a.numero} — ${a.clase}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {fieldErrors.asiento && (
+              {fieldErrors.asientoId && (
                 <span
                   id="rsv-asiento-error"
                   role="alert"
                   className="text-xs text-destructive"
                 >
-                  {fieldErrors.asiento}
+                  {fieldErrors.asientoId}
                 </span>
               )}
             </div>
@@ -253,7 +418,7 @@ export function NuevaReservaDialog() {
           <Button
             type="submit"
             form="reserva-form"
-            disabled={saving}
+            disabled={isFormDisabled}
             className="min-w-28"
           >
             {saving ? "Creando…" : "Crear reserva"}

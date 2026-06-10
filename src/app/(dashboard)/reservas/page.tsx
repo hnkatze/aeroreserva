@@ -1,13 +1,16 @@
 import type { Metadata } from "next"
 import { ReservasTable } from "@/components/reservas/reservas-table"
+import { NuevaReservaDialog } from "@/components/reservas/nueva-reserva-dialog"
+import { listarReservas } from "@/lib/reservas"
 
 export const metadata: Metadata = {
   title: "Reservas",
   description: "Gestión de reservas de pasajeros.",
 }
-import { NuevaReservaDialog } from "@/components/reservas/nueva-reserva-dialog"
 
-export default function ReservasPage() {
+export default async function ReservasPage() {
+  const reservas = await listarReservas()
+
   return (
     <div className="flex flex-col gap-8">
       {/* ── Header ──────────────────────────────────────────────── */}
@@ -25,7 +28,7 @@ export default function ReservasPage() {
 
       {/* ── Table ───────────────────────────────────────────────── */}
       <section aria-label="Listado de reservas">
-        <ReservasTable />
+        <ReservasTable reservas={reservas} />
       </section>
     </div>
   )

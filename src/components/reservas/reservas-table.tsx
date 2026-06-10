@@ -23,83 +23,45 @@ import {
   EstadoReservaBadge,
   type EstadoReserva,
 } from "@/components/reservas/estado-reserva-badge"
+import type { ReservaCompleta } from "@/lib/reservas"
 
-// MOCK — reservas hardcodeadas
-interface Reserva {
-  codigo: string
-  pasajero: string
-  vuelo: string
-  asiento: string
-  estado: EstadoReserva
-  fecha: string
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const KNOWN_ESTADOS: readonly EstadoReserva[] = [
+  "confirmada",
+  "en_espera",
+  "cancelada",
+]
+
+function toEstadoBadge(estado: string): EstadoReserva {
+  if ((KNOWN_ESTADOS as readonly string[]).includes(estado)) {
+    return estado as EstadoReserva
+  }
+  return "confirmada"
 }
 
-const RESERVAS_MOCK: readonly Reserva[] = [
-  {
-    codigo: "RSV-00128",
-    pasajero: "María García",
-    vuelo: "AR1204",
-    asiento: "12A",
-    estado: "confirmada",
-    fecha: "2025-07-14",
-  },
-  {
-    codigo: "RSV-00129",
-    pasajero: "Carlos López",
-    vuelo: "AR0850",
-    asiento: "3C",
-    estado: "en_espera",
-    fecha: "2025-07-15",
-  },
-  {
-    codigo: "RSV-00130",
-    pasajero: "Sofía Martínez",
-    vuelo: "LA5502",
-    asiento: "7B",
-    estado: "confirmada",
-    fecha: "2025-07-15",
-  },
-  {
-    codigo: "RSV-00131",
-    pasajero: "Diego Rodríguez",
-    vuelo: "AA7731",
-    asiento: "22D",
-    estado: "cancelada",
-    fecha: "2025-07-16",
-  },
-  {
-    codigo: "RSV-00132",
-    pasajero: "Valentina Torres",
-    vuelo: "IB6612",
-    asiento: "1A",
-    estado: "confirmada",
-    fecha: "2025-07-18",
-  },
-  {
-    codigo: "RSV-00133",
-    pasajero: "Facundo Benítez",
-    vuelo: "AR1204",
-    asiento: "15F",
-    estado: "en_espera",
-    fecha: "2025-07-20",
-  },
-  {
-    codigo: "RSV-00134",
-    pasajero: "Lucía Fernández",
-    vuelo: "AR0850",
-    asiento: "4D",
-    estado: "confirmada",
-    fecha: "2025-07-22",
-  },
-] as const
+function formatFecha(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date
+  return d.toISOString().slice(0, 10)
+}
 
-function ReservaActionsMenu({ reserva }: { reserva: Reserva }) {
+// ---------------------------------------------------------------------------
+// Row actions menu
+// ---------------------------------------------------------------------------
+
+interface ReservaActionsMenuProps {
+  reserva: ReservaCompleta
+}
+
+function ReservaActionsMenu({ reserva }: ReservaActionsMenuProps) {
   function handleVer() {
-    toast.info(`Ver reserva ${reserva.codigo} (demo)`)
+    toast.info(`Ver reserva #${reserva.id} — ${reserva.vuelo_codigo}`)
   }
 
   function handleCancelar() {
-    toast.error(`Reserva ${reserva.codigo} cancelada (demo)`)
+    toast.error(`Reserva #${reserva.id} cancelada (demo)`)
   }
 
   return (
@@ -109,7 +71,7 @@ function ReservaActionsMenu({ reserva }: { reserva: Reserva }) {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Acciones para reserva ${reserva.codigo}`}
+            aria-label={`Acciones para reserva #${reserva.id}`}
           />
         }
       >
@@ -134,7 +96,15 @@ function ReservaActionsMenu({ reserva }: { reserva: Reserva }) {
   )
 }
 
-export function ReservasTable() {
+// ---------------------------------------------------------------------------
+// ReservasTable
+// ---------------------------------------------------------------------------
+
+interface ReservasTableProps {
+  reservas: ReservaCompleta[]
+}
+
+export function ReservasTable({ reservas }: ReservasTableProps) {
   return (
     <div className="rounded-xl border bg-card">
       <Table aria-label="Listado de reservas">
@@ -150,25 +120,29 @@ export function ReservasTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {RESERVAS_MOCK.map((reserva) => (
-            <TableRow key={reserva.codigo}>
+          {reservas.map((reserva) => (
+            <TableRow key={reserva.id}>
               <TableCell className="pl-4">
                 <span className="font-mono text-xs text-muted-foreground">
-                  {reserva.codigo}
+                  {`RSV-${String(reserva.id).padStart(5, "0")}`}
                 </span>
               </TableCell>
-              <TableCell className="font-medium">{reserva.pasajero}</TableCell>
-              <TableCell>
-                <span className="font-mono text-xs">{reserva.vuelo}</span>
+              <TableCell className="font-medium">
+                {reserva.pasajero_nombre}
               </TableCell>
               <TableCell>
-                <span className="font-mono text-xs">{reserva.asiento}</span>
+                <span className="font-mono text-xs">{reserva.vuelo_codigo}</span>
               </TableCell>
               <TableCell>
-                <EstadoReservaBadge estado={reserva.estado} />
+                <span className="font-mono text-xs">
+                  {reserva.asiento_numero}
+                </span>
+              </TableCell>
+              <TableCell>
+                <EstadoReservaBadge estado={toEstadoBadge(reserva.estado)} />
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {reserva.fecha}
+                {formatFecha(reserva.fecha)}
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <ReservaActionsMenu reserva={reserva} />
