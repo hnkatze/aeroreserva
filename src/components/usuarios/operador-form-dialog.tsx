@@ -147,7 +147,7 @@ export function OperadorFormDialog({ operador }: OperadorFormDialogProps) {
               aria-label={`Editar operador ${operador?.username ?? ""}`}
             />
           ) : (
-            <Button size="sm" />
+            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" />
           )
         }
       >
@@ -160,7 +160,7 @@ export function OperadorFormDialog({ operador }: OperadorFormDialogProps) {
           </>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Editar operador" : "Nuevo operador"}
@@ -237,7 +237,7 @@ export function OperadorFormDialog({ operador }: OperadorFormDialogProps) {
               <Select
                 value={form.role}
                 onValueChange={(value) =>
-                  setForm((f) => ({ ...f, role: value as OperatorRole }))
+                  setForm((f) => ({ ...f, role: (value ?? "agente") as OperatorRole }))
                 }
                 disabled={saving}
               >
@@ -265,7 +265,7 @@ export function OperadorFormDialog({ operador }: OperadorFormDialogProps) {
                   onValueChange={(value) =>
                     setForm((f) => ({
                       ...f,
-                      activo: value as "true" | "false",
+                      activo: ((value ?? "true") as "true" | "false"),
                     }))
                   }
                   disabled={saving}

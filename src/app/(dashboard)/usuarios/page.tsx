@@ -9,9 +9,11 @@ export default async function UsuariosPage() {
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Usuarios</h1>
+          <h1 className="font-heading text-2xl font-bold sm:text-3xl">
+            Usuarios
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Gestión de operadores del sistema
+            Gestioná los operadores del sistema
           </p>
         </div>
         <OperadorFormDialog />

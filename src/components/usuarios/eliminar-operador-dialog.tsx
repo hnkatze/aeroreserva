@@ -65,15 +65,20 @@ export function EliminarOperadorDialog({
           />
         }
       >
-        <Trash2Icon className="h-4 w-4 text-destructive" aria-hidden="true" />
+        <Trash2Icon
+          className="h-4 w-4 text-destructive"
+          aria-hidden="true"
+        />
       </AlertDialogTrigger>
-      <AlertDialogContent>
+      <AlertDialogContent className="sm:max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle>¿Eliminar operador?</AlertDialogTitle>
           <AlertDialogDescription>
             Estás por eliminar al operador{" "}
-            <strong className="text-foreground">{operador.username}</strong>.
-            Esta acción no se puede deshacer.
+            <strong className="font-semibold text-foreground">
+              {operador.username}
+            </strong>
+            . Esta acción no se puede deshacer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
