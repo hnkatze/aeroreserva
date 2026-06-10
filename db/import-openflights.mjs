@@ -198,15 +198,48 @@ try {
   // -------------------------------------------------------------------------
   if (args.reset) {
     console.log("\n[reset] Truncating all catalog and reservation tables...");
+    // Order: reservas → asientos → vuelos → pasajeros → aerolineas → aeropuertos
+    // vuelos references aerolineas; CASCADE covers dependent rows automatically.
     await client.query(`
-      TRUNCATE reservas, asientos, vuelos, pasajeros, aeropuertos
+      TRUNCATE reservas, asientos, vuelos, pasajeros, aerolineas, aeropuertos
       RESTART IDENTITY CASCADE
     `);
     console.log("[reset] Done — all tables cleared.\n");
   }
 
   // -------------------------------------------------------------------------
-  // Step 1: Download and parse airports.dat
+  // Step 1a: Download and parse airlines.dat (needed before flights)
+  // airlines.dat columns (0-based):
+  //   0=AirlineID, 1=Name(q), 2=Alias(q), 3=IATA(q), 4=ICAO(q),
+  //   5=Callsign(q), 6=Country(q), 7=Active(q)
+  // -------------------------------------------------------------------------
+  console.log("[airlines] Downloading airlines.dat...");
+  const airlinesRaw = await fetchText(
+    "https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat"
+  );
+  const airlineCSVRows = parseCSV(airlinesRaw);
+  console.log(`[airlines] Parsed ${airlineCSVRows.length} rows`);
+
+  // Build a Map: code → { nombre, pais }
+  // Index by both ICAO (3-letter) and IATA (2-letter), preferring ICAO on collision.
+  const airlineMap = new Map(); // code → { nombre, pais }
+  for (const row of airlineCSVRows) {
+    const nombre = row[1];
+    const iata   = row[3];
+    const icao   = row[4];
+    const pais   = row[6];
+    if (!nombre) continue;
+    if (icao && /^[A-Z]{3}$/.test(icao) && !airlineMap.has(icao)) {
+      airlineMap.set(icao, { nombre, pais: pais ?? null });
+    }
+    if (iata && /^[A-Z0-9]{2}$/.test(iata) && !airlineMap.has(iata)) {
+      airlineMap.set(iata, { nombre, pais: pais ?? null });
+    }
+  }
+  console.log(`[airlines] Map size: ${airlineMap.size} codes indexed`);
+
+  // -------------------------------------------------------------------------
+  // Step 1b: Download and parse airports.dat
   // -------------------------------------------------------------------------
   console.log("[airports] Downloading airports.dat...");
   const airportRaw = await fetchText(
@@ -266,6 +299,9 @@ try {
   // 0=Airline IATA, 1=AirlineID, 2=SrcIATA, 3=SrcID, 4=DstIATA, 5=DstID,
   // 6=Codeshare, 7=Stops, 8=Equipment
   const candidateRoutes = [];
+  // Accumulate airlines that appear in selected routes (for pre-insert)
+  const usedAirlines = new Map(); // code → { nombre, pais }
+
   for (const row of routeRows) {
     const airline = row[0];
     const src     = row[2];
@@ -276,12 +312,40 @@ try {
     if (src === dst) continue;
     if (!airportMap.has(src) || !airportMap.has(dst)) continue;
     candidateRoutes.push({ airline, src, dst });
+    if (!usedAirlines.has(airline)) {
+      const match = airlineMap.get(airline);
+      usedAirlines.set(airline, {
+        nombre: match ? match.nombre : airline,
+        pais:   match ? match.pais   : null,
+      });
+    }
   }
   console.log(`[routes] Valid candidate routes: ${candidateRoutes.length}`);
 
   if (candidateRoutes.length === 0) {
     throw new Error("No valid routes found — cannot generate flights.");
   }
+
+  // -------------------------------------------------------------------------
+  // Step 3b: Insert airlines that will be referenced by the generated flights
+  // Must happen BEFORE flights to satisfy the FK constraint.
+  // -------------------------------------------------------------------------
+  console.log(`\n[airlines] Inserting ${usedAirlines.size} airline(s) into aerolineas...`);
+  const airlineRows = Array.from(usedAirlines.entries()).map(([codigo, info]) => ({
+    codigo,
+    nombre: info.nombre,
+    pais:   info.pais,
+  }));
+  await batchInsert(
+    client,
+    "aerolineas",
+    "codigo, nombre, pais",
+    airlineRows,
+    (r) => [r.codigo, r.nombre, r.pais],
+    "ON CONFLICT (codigo) DO UPDATE SET nombre = EXCLUDED.nombre, pais = EXCLUDED.pais",
+    500
+  );
+  console.log(`[airlines] Done.`);
 
   // -------------------------------------------------------------------------
   // Step 4: Generate flights
@@ -325,6 +389,7 @@ try {
       destino: route.dst,
       salida,
       llegada,
+      aerolinea_codigo: route.airline,
     });
   }
 
@@ -337,16 +402,23 @@ try {
 
   for (let start = 0; start < flights.length; start += flightBatchSize) {
     const chunk = flights.slice(start, start + flightBatchSize);
-    const colCount = 5; // codigo, origen, destino, salida, llegada
+    const colCount = 6; // codigo, origen, destino, salida, llegada, aerolinea_codigo
     const placeholders = chunk
       .map((_, ri) =>
         `(${Array.from({ length: colCount }, (_, ci) => `$${ri * colCount + ci + 1}`).join(", ")})`
       )
       .join(", ");
-    const values = chunk.flatMap((f) => [f.codigo, f.origen, f.destino, f.salida, f.llegada]);
+    const values = chunk.flatMap((f) => [
+      f.codigo,
+      f.origen,
+      f.destino,
+      f.salida,
+      f.llegada,
+      f.aerolinea_codigo,
+    ]);
 
     const res = await client.query(
-      `INSERT INTO vuelos (codigo, origen, destino, salida, llegada)
+      `INSERT INTO vuelos (codigo, origen, destino, salida, llegada, aerolinea_codigo)
        VALUES ${placeholders}
        ON CONFLICT (codigo) DO NOTHING
        RETURNING id`,
