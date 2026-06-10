@@ -1,54 +1,72 @@
-// MOCK — todos los datos están hardcodeados; reemplazar con queries reales
-
 import type { Metadata } from "next"
 import {
   TrendingUpIcon,
   PlaneIcon,
   UsersIcon,
-  DollarSignIcon,
+  AirplayIcon,
 } from "lucide-react"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { OcupacionBarChart } from "@/components/reportes/ocupacion-bar-chart"
 import { ResumenTable } from "@/components/reportes/resumen-table"
-
-// MOCK — KPIs calculados a partir de los datos de ocupación
-const KPI_DATA = [
-  {
-    label: "Ocupación promedio",
-    value: "79%",
-    icon: TrendingUpIcon,
-    trend: "+4 pp vs. semana pasada",
-    accent: true,
-  },
-  {
-    label: "Vuelos llenos (≥90%)",
-    value: "3",
-    icon: PlaneIcon,
-    trend: "AR 1401, AR 2210, AR 0915",
-    accent: false,
-  },
-  {
-    label: "Asientos vendidos",
-    value: "1.089",
-    icon: UsersIcon,
-    trend: "de 1.360 disponibles",
-    accent: false,
-  },
-  {
-    label: "Ingresos estimados",
-    value: "$218.400",
-    icon: DollarSignIcon,
-    trend: "+12% vs. período anterior",
-    accent: false,
-  },
-] as const
+import {
+  ocupacionPorVuelo,
+  resumenKpis,
+} from "@/lib/reportes"
 
 export const metadata: Metadata = {
   title: "Reportes",
   description: "Indicadores de ocupación de la flota.",
 }
 
-export default function ReportesPage() {
+/**
+ * Página de reportes — Server Component asíncrono.
+ *
+ * Carga en paralelo los top-20 vuelos por ocupación y los KPIs globales.
+ * Si alguna query falla, Next.js propaga el error al error boundary más
+ * cercano (error.tsx); no necesitamos try/catch aquí.
+ *
+ * Los datos se comparten entre OcupacionBarChart y ResumenTable para
+ * evitar dos queries separadas a la misma vista.
+ */
+export default async function ReportesPage() {
+  // Parallel data fetching — ambas queries son independientes
+  const [vuelos, kpis] = await Promise.all([
+    ocupacionPorVuelo({ limit: 20 }),
+    resumenKpis(),
+  ])
+
+  // Construir los KPI cards a partir de datos reales
+  const kpiItems = [
+    {
+      label: "Ocupación global",
+      value: `${kpis.pct_ocupacion_global}%`,
+      icon: TrendingUpIcon,
+      trend: `${kpis.asientos_ocupados.toLocaleString("es-AR")} asientos ocupados`,
+      accent: true,
+    },
+    {
+      label: "Vuelos llenos (≥90%)",
+      value: kpis.vuelos_llenos.toLocaleString("es-AR"),
+      icon: PlaneIcon,
+      trend: `de ${kpis.total_vuelos.toLocaleString("es-AR")} vuelos en catálogo`,
+      accent: false,
+    },
+    {
+      label: "Reservas confirmadas",
+      value: kpis.reservas_confirmadas.toLocaleString("es-AR"),
+      icon: UsersIcon,
+      trend: `${kpis.asientos_libres.toLocaleString("es-AR")} asientos libres`,
+      accent: false,
+    },
+    {
+      label: "Aerolíneas activas",
+      value: kpis.aerolineas_activas.toLocaleString("es-AR"),
+      icon: AirplayIcon,
+      trend: `${kpis.total_asientos.toLocaleString("es-AR")} asientos en flota`,
+      accent: false,
+    },
+  ] as const
+
   return (
     <div className="flex flex-col gap-8">
       {/* ── Encabezado ──────────────────────────────────────────────── */}
@@ -67,7 +85,7 @@ export default function ReportesPage() {
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
           role="list"
         >
-          {KPI_DATA.map((kpi) => (
+          {kpiItems.map((kpi) => (
             <li key={kpi.label}>
               <KpiCard
                 label={kpi.label}
@@ -83,12 +101,12 @@ export default function ReportesPage() {
 
       {/* ── Gráfico de barras ─────────────────────────────────────── */}
       <section aria-label="Gráfico de ocupación por vuelo">
-        <OcupacionBarChart />
+        <OcupacionBarChart vuelos={vuelos} />
       </section>
 
       {/* ── Tabla resumen ─────────────────────────────────────────── */}
       <section aria-label="Tabla resumen de vuelos">
-        <ResumenTable />
+        <ResumenTable vuelos={vuelos} />
       </section>
     </div>
   )
