@@ -26,6 +26,8 @@ export interface VuelosFiltros {
   destino?: string;
   /** ISO date string yyyy-mm-dd; matches flights departing on that calendar day */
   fecha?: string;
+  /** Free-text search — matches codigo, origen, or destino (case-insensitive) */
+  q?: string;
 }
 
 export interface VuelosListOptions extends VuelosFiltros {
@@ -58,6 +60,15 @@ function buildWhere(
     // Match any flight departing on the given calendar day (UTC date)
     clauses.push(`v.salida::date = $${n++}::date`);
     params.push(filtros.fecha);
+  }
+  if (filtros.q) {
+    // Full-text-style search: codigo, origin IATA code, or destination IATA code
+    const pattern = `%${filtros.q}%`;
+    clauses.push(
+      `(v.codigo ILIKE $${n} OR v.origen ILIKE $${n} OR v.destino ILIKE $${n})`,
+    );
+    params.push(pattern);
+    n++;
   }
 
   const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
