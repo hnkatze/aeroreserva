@@ -2,14 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -45,13 +39,55 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl">AeroReserva</CardTitle>
-          <CardDescription>Ingresá con tu usuario de operador.</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="flex min-h-svh">
+      {/* Brand panel — hidden on small screens */}
+      <aside className="hidden w-[44%] flex-col justify-between bg-gradient-to-br from-primary to-[#14275C] p-12 lg:flex">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500">
+            <Plane className="h-6 w-6 text-[#14275C]" aria-hidden="true" />
+          </div>
+          <span className="font-heading text-xl font-bold text-white">
+            AeroReserva
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <p className="font-heading text-4xl font-semibold leading-tight text-white">
+            Gestión de reservas para profesionales
+          </p>
+          <p className="max-w-md text-base leading-relaxed text-slate-300">
+            Controlá vuelos, asientos, pasajeros y la lista de espera desde un
+            solo lugar — con la base de datos garantizando cada reserva.
+          </p>
+        </div>
+
+        <p className="font-mono text-xs text-slate-400">
+          AeroReserva · sistema interno de operadores
+        </p>
+      </aside>
+
+      {/* Form panel */}
+      <main className="flex flex-1 items-center justify-center bg-background p-6">
+        <div className="w-full max-w-sm">
+          {/* Logo shown only when the brand panel is hidden */}
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500">
+              <Plane className="h-5 w-5 text-[#14275C]" aria-hidden="true" />
+            </div>
+            <span className="font-heading text-lg font-bold text-foreground">
+              AeroReserva
+            </span>
+          </div>
+
+          <div className="mb-6">
+            <h1 className="font-heading text-2xl font-semibold text-foreground">
+              Bienvenido
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ingresá con tu usuario de operador.
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             <div className="flex flex-col gap-2">
               <Label htmlFor="username">Usuario</Label>
@@ -86,8 +122,8 @@ export default function LoginPage() {
               {loading ? "Ingresando…" : "Ingresar"}
             </Button>
           </form>
-        </CardContent>
-      </Card>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }
