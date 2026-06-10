@@ -49,3 +49,6 @@ CLAUDE.md
 .agents/*
 .mcp.json
 AERORESERVA-PROPUESTA.md
+
+.playwright-mcp/
+.codegraph/
