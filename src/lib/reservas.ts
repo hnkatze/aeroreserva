@@ -80,6 +80,15 @@ export async function crearReserva(
   input: CrearReservaInput,
 ): Promise<ReservaCompleta> {
   return withTransaction(async (client) => {
+    // Set the application operator in the session so the audit trigger can
+    // capture who initiated this reservation.  set_config with is_local=true
+    // scopes the variable to this transaction only (equivalent to SET LOCAL),
+    // which is the safe form when using parameterized queries.
+    await client.query(
+      "SELECT set_config('app.current_operator', $1, true)",
+      [String(input.operadorId)],
+    );
+
     // Step 1: upsert passenger inside the transaction (D3)
     const { id: pasajeroId } = await upsertPasajero(client, input.pasajero);
 
