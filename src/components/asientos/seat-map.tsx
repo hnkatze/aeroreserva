@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { PlaneIcon } from "lucide-react"
 import { SeatButton } from "./seat-button"
 import { SeatLegend } from "./seat-legend"
 import { SeatDetailPanel } from "./seat-detail-panel"
@@ -10,6 +11,7 @@ import {
   OCCUPIED_SEATS,
   TOTAL_ROWS,
   type Seat,
+  type SeatStats,
 } from "./seat-types"
 
 // Build the full seat grid from mock data
@@ -34,13 +36,16 @@ function buildSeats(): Seat[] {
 const LEFT_COLS = ["A", "B", "C"] as const
 const RIGHT_COLS = ["D", "E", "F"] as const
 
-export function SeatMap() {
+interface SeatMapProps {
+  flightLabel?: string
+}
+
+export function SeatMap({ flightLabel }: SeatMapProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   // Seats are static (mock) — build once
   const seats = useMemo(() => buildSeats(), [])
 
-  // Index by id for fast lookup
   const seatById = useMemo(
     () => new Map(seats.map((s) => [s.id, s])),
     [seats]
@@ -48,11 +53,22 @@ export function SeatMap() {
 
   const selectedSeat = selectedId ? seatById.get(selectedId) ?? null : null
 
+  const stats: SeatStats = useMemo(() => {
+    const total = seats.length
+    const ocupados = seats.filter((s) => s.status === "ocupado").length
+    const libres = total - ocupados
+    return {
+      total,
+      ocupados,
+      libres,
+      pct: Math.round((ocupados / total) * 100),
+    }
+  }, [seats])
+
   function handleSelect(id: string) {
     setSelectedId((prev) => (prev === id ? null : id))
   }
 
-  // Group seats by row
   const rowMap = useMemo(() => {
     const map = new Map<number, Seat[]>()
     for (const seat of seats) {
@@ -63,7 +79,7 @@ export function SeatMap() {
   }, [seats])
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       {/* Legend */}
       <SeatLegend />
 
@@ -74,12 +90,24 @@ export function SeatMap() {
           aria-label="Mapa de asientos del avión"
           className="w-full overflow-x-auto lg:flex-1"
         >
-          {/* Column header */}
+          {/* Front-of-plane indicator */}
           <div
-            className="mb-2 flex items-center"
+            className="mb-4 flex flex-col items-center gap-1"
             aria-hidden="true"
           >
-            {/* Row number spacer */}
+            <div className="flex h-7 w-24 items-end justify-center rounded-t-[2.5rem] border border-b-0 border-border bg-muted/50">
+              <PlaneIcon className="mb-1 h-4 w-4 text-muted-foreground" />
+            </div>
+            <span className="font-mono text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+              Frente
+            </span>
+          </div>
+
+          {/* Column header */}
+          <div
+            className="mb-2 flex items-center justify-center"
+            aria-hidden="true"
+          >
             <div className="w-8 shrink-0" />
             <div className="flex gap-1">
               {LEFT_COLS.map((col) => (
@@ -91,8 +119,7 @@ export function SeatMap() {
                 </div>
               ))}
             </div>
-            {/* Aisle gap */}
-            <div className="w-6" />
+            <div className="mx-1 w-6" />
             <div className="flex gap-1">
               {RIGHT_COLS.map((col) => (
                 <div
@@ -103,10 +130,14 @@ export function SeatMap() {
                 </div>
               ))}
             </div>
+            <div className="ml-3 w-9 shrink-0" />
           </div>
 
           {/* Rows */}
-          <ol aria-label="Filas de asientos" className="flex flex-col gap-1">
+          <ol
+            aria-label="Filas de asientos"
+            className="flex flex-col items-center gap-1"
+          >
             {Array.from({ length: TOTAL_ROWS }, (_, i) => i + 1).map((row) => {
               const rowSeats = rowMap.get(row) ?? []
               const leftSeats = rowSeats.filter((s) =>
@@ -143,14 +174,12 @@ export function SeatMap() {
                     ))}
                   </div>
 
-                  {/* Aisle — visually distinct */}
+                  {/* Aisle — visible divider line */}
                   <div
-                    className="mx-1 flex w-4 items-center justify-center"
+                    className="mx-1 flex w-6 items-stretch justify-center"
                     aria-hidden="true"
                   >
-                    {isExecutiveRow && (
-                      <div className="h-1 w-1 rounded-full bg-amber-300" />
-                    )}
+                    <div className="w-px bg-border" />
                   </div>
 
                   {/* Right block D E F */}
@@ -169,27 +198,34 @@ export function SeatMap() {
                     ))}
                   </div>
 
-                  {/* Executive badge */}
-                  {isExecutiveRow && (
-                    <span
-                      className="ml-3 rounded-sm bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-                      aria-label="Clase ejecutiva"
-                    >
-                      EJE
-                    </span>
-                  )}
+                  {/* Executive badge — indigo, fixed-width slot to keep rows aligned */}
+                  <span className="ml-3 flex w-9 shrink-0 justify-start">
+                    {isExecutiveRow && (
+                      <span
+                        className="rounded-sm bg-indigo-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
+                        aria-label="Clase ejecutiva"
+                      >
+                        EJE
+                      </span>
+                    )}
+                  </span>
                 </li>
               )
             })}
           </ol>
         </section>
 
-        {/* ── Detail Panel ────────────────────────────────────────── */}
+        {/* ── Detail Panel (sticky) ───────────────────────────────── */}
         <aside
           aria-label="Detalle del asiento seleccionado"
-          className="w-full lg:w-72 lg:shrink-0"
+          className="w-full lg:sticky lg:top-6 lg:w-72 lg:shrink-0"
         >
-          <SeatDetailPanel seat={selectedSeat} onReservar={() => {}} />
+          <SeatDetailPanel
+            seat={selectedSeat}
+            stats={stats}
+            flightLabel={flightLabel}
+            onReservar={() => {}}
+          />
         </aside>
       </div>
     </div>

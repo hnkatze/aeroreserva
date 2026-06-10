@@ -35,3 +35,10 @@ export const COLUMNS = ["A", "B", "C", "D", "E", "F"] as const
 export type Column = (typeof COLUMNS)[number]
 
 export const TOTAL_ROWS = 20
+
+export interface SeatStats {
+  total: number
+  ocupados: number
+  libres: number
+  pct: number
+}

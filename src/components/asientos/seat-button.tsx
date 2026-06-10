@@ -31,9 +31,9 @@ export function SeatButton({ seat, isSelected, onSelect }: SeatButtonProps) {
         // Default: libre
         !isOccupied && !isSelected && !isExecutive &&
           "border-border bg-background text-foreground hover:bg-muted",
-        // Libre ejecutiva — subtle amber tint
+        // Libre ejecutiva — indigo accent (amber is reserved for "selected")
         !isOccupied && !isSelected && isExecutive &&
-          "border-amber-300/60 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/40",
+          "border-indigo-300 bg-indigo-50 text-indigo-900 hover:bg-indigo-100 dark:border-indigo-500/50 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-900/50",
         // Ocupado
         isOccupied &&
           "cursor-not-allowed border-transparent bg-primary text-primary-foreground opacity-80",

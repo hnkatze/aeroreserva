@@ -1,6 +1,6 @@
 "use client"
 
-import { ArmchairIcon, CheckIcon } from "lucide-react"
+import { ArmchairIcon, CheckIcon, PlaneIcon } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -9,10 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import type { Seat } from "./seat-types"
+import type { Seat, SeatStats } from "./seat-types"
 
 interface SeatDetailPanelProps {
   seat: Seat | null
+  stats: SeatStats
+  flightLabel?: string
   onReservar: (seatId: string) => void
 }
 
@@ -21,12 +23,7 @@ const CLASS_LABEL: Record<Seat["clase"], string> = {
   economica: "Económica",
 }
 
-interface DetailRowProps {
-  label: string
-  value: string
-}
-
-function DetailRow({ label, value }: DetailRowProps) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 py-2 text-sm">
       <span className="text-muted-foreground">{label}</span>
@@ -35,17 +32,71 @@ function DetailRow({ label, value }: DetailRowProps) {
   )
 }
 
-export function SeatDetailPanel({ seat, onReservar }: SeatDetailPanelProps) {
+function OccupancySummary({ stats }: { stats: SeatStats }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-end justify-between">
+        <span className="font-heading text-3xl font-bold text-foreground">
+          {stats.pct}%
+        </span>
+        <span className="text-sm text-muted-foreground">ocupado</span>
+      </div>
+      <div
+        className="h-2 w-full overflow-hidden rounded-full bg-muted"
+        aria-hidden="true"
+      >
+        <div
+          className={cn(
+            "h-full rounded-full",
+            stats.pct >= 90 ? "bg-amber-500" : "bg-primary"
+          )}
+          style={{ width: `${stats.pct}%` }}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className="rounded-lg border border-border bg-background px-3 py-2">
+          <p className="font-heading text-lg font-bold text-foreground">
+            {stats.libres}
+          </p>
+          <p className="text-xs text-muted-foreground">Libres</p>
+        </div>
+        <div className="rounded-lg border border-border bg-background px-3 py-2">
+          <p className="font-heading text-lg font-bold text-foreground">
+            {stats.ocupados}
+          </p>
+          <p className="text-xs text-muted-foreground">Ocupados</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function SeatDetailPanel({
+  seat,
+  stats,
+  flightLabel,
+  onReservar,
+}: SeatDetailPanelProps) {
   if (!seat) {
     return (
-      <Card className="flex flex-col items-center gap-3 py-10 text-center">
-        <ArmchairIcon
-          className="h-10 w-10 text-muted-foreground/40"
-          aria-hidden="true"
-        />
-        <p className="text-sm text-muted-foreground">
-          Seleccioná un asiento para ver el detalle
-        </p>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <PlaneIcon className="h-4 w-4 text-primary" aria-hidden="true" />
+            Resumen del vuelo
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {flightLabel ? (
+            <p className="font-mono text-sm text-muted-foreground">
+              {flightLabel}
+            </p>
+          ) : null}
+          <OccupancySummary stats={stats} />
+          <p className="pt-1 text-xs text-muted-foreground">
+            Seleccioná un asiento libre para ver su detalle y reservarlo.
+          </p>
+        </CardContent>
       </Card>
     )
   }
@@ -88,14 +139,13 @@ export function SeatDetailPanel({ seat, onReservar }: SeatDetailPanelProps) {
           </div>
         </div>
 
-        {/* Clase indicator chip */}
         {seat.clase === "ejecutiva" && (
           <div
-            className="mt-4 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 dark:bg-amber-950/30"
+            className="mt-4 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 dark:border-indigo-500/50 dark:bg-indigo-950/40"
             role="note"
             aria-label="Este asiento pertenece a clase ejecutiva"
           >
-            <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+            <p className="text-xs font-medium text-indigo-800 dark:text-indigo-300">
               Clase ejecutiva — mayor espacio entre asientos
             </p>
           </div>
@@ -108,9 +158,9 @@ export function SeatDetailPanel({ seat, onReservar }: SeatDetailPanelProps) {
           onClick={() => onReservar(seat.id)}
           className={cn(
             "flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5",
-            "bg-primary text-primary-foreground text-sm font-semibold",
+            "bg-primary text-sm font-semibold text-primary-foreground",
             "transition-colors hover:bg-primary/90",
-            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none",
+            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
           )}
           aria-label={`Reservar asiento ${seat.id}`}
         >

@@ -24,20 +24,14 @@ export function SeatLegend() {
   return (
     <nav aria-label="Leyenda de asientos">
       <ul className="flex flex-wrap gap-x-6 gap-y-2" role="list">
-        <LegendItem
-          className="border-border bg-background"
-          label="Libre"
-        />
-        <LegendItem
-          className="border-primary/30 bg-primary text-primary-foreground"
-          label="Ocupado"
-        />
+        <LegendItem className="border-border bg-background" label="Libre" />
+        <LegendItem className="border-primary/30 bg-primary" label="Ocupado" />
         <LegendItem
           className="border-amber-400 bg-amber-500"
           label="Seleccionado"
         />
         <LegendItem
-          className="border-amber-300/60 bg-amber-50 dark:bg-amber-950/30"
+          className="border-indigo-300 bg-indigo-50 dark:border-indigo-500/50 dark:bg-indigo-950/40"
           label="Ejecutiva (libre)"
         />
       </ul>

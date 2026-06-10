@@ -78,7 +78,7 @@ export default function AsientosPage() {
 
       {/* ── Interactive seat map (client component) ──────────────── */}
       <section aria-label="Mapa de asientos interactivo">
-        <SeatMap />
+        <SeatMap flightLabel="AR1304 · SCL → GRU · 09:45 · Boeing 737-800" />
       </section>
     </div>
   )
