@@ -1,8 +1,31 @@
+"use client"
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Cell,
+  Tooltip,
+} from "recharts"
 import type { OcupacionVuelo } from "@/lib/reportes"
+import {
+  ChartContainer,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
 
 interface OcupacionBarChartProps {
   vuelos: OcupacionVuelo[]
 }
+
+const chartConfig = {
+  pct_ocupacion: {
+    label: "Ocupación",
+    color: "var(--chart-1)",
+  },
+} satisfies ChartConfig
 
 export function OcupacionBarChart({ vuelos }: OcupacionBarChartProps) {
   return (
@@ -19,70 +42,91 @@ export function OcupacionBarChart({ vuelos }: OcupacionBarChartProps) {
           No hay datos de ocupación disponibles.
         </p>
       ) : (
-        <ul role="list" className="flex flex-col gap-3" aria-label="Gráfico de ocupación por vuelo">
-          {vuelos.map((vuelo) => {
-            const pct = vuelo.pct_ocupacion
-            const isFull = pct >= 90
-            const route = `${vuelo.origen} → ${vuelo.destino}`
-
-            return (
-              <li key={vuelo.vuelo_id}>
-                {/* Row: label | bar | percentage */}
-                <div className="flex items-center gap-3">
-                  {/* Flight code label */}
-                  <span
-                    className="w-20 shrink-0 font-mono text-xs text-muted-foreground"
-                    title={route}
-                    aria-hidden="true"
-                  >
-                    {vuelo.codigo}
-                  </span>
-
-                  {/* Bar track */}
-                  <div
-                    className="relative h-5 flex-1 overflow-hidden rounded-full bg-muted"
-                    role="progressbar"
-                    aria-valuenow={pct}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`Vuelo ${vuelo.codigo}, ruta ${route.replace("→", "a")}: ${pct}% de ocupación`}
-                  >
-                    {/* Bar fill — amber when ≥90%, primary otherwise */}
-                    <div
-                      className={`h-full rounded-full transition-all ${isFull ? "bg-amber-500" : "bg-primary"}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-
-                  {/* Percentage label */}
-                  <span
-                    className={`w-10 shrink-0 text-right text-xs font-medium tabular-nums ${
-                      isFull ? "text-amber-600 dark:text-amber-400" : "text-foreground"
-                    }`}
-                    aria-hidden="true"
-                  >
-                    {pct}%
-                  </span>
-                </div>
-
-                {/* Occupied / total sub-label */}
-                <p className="mt-0.5 pl-[5.75rem] text-xs text-muted-foreground">
-                  {vuelo.ocupados.toLocaleString("es-AR")} / {vuelo.total_asientos.toLocaleString("es-AR")} asientos
-                </p>
-              </li>
-            )
-          })}
-        </ul>
+        <figure aria-label="Gráfico de barras: ocupación por vuelo (columnas verticales)">
+          <figcaption className="sr-only">
+            Columnas verticales que muestran el porcentaje de ocupación de cada
+            vuelo. Las columnas en ámbar indican vuelos con ≥90% de ocupación.
+          </figcaption>
+          <ChartContainer config={chartConfig} className="h-72 w-full">
+            <BarChart
+              accessibilityLayer
+              data={vuelos}
+              margin={{ top: 8, right: 8, bottom: 48, left: 8 }}
+            >
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="codigo"
+                tick={{ fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+                interval={0}
+                angle={-55}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tickFormatter={(v: number) => `${v}%`}
+                tick={{ fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+                width={38}
+              />
+              <Tooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, _name, item) => {
+                      const d = item.payload as OcupacionVuelo
+                      return (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium">
+                            {d.codigo} — {d.origen} → {d.destino}
+                          </span>
+                          <span>
+                            {d.ocupados.toLocaleString("es-AR")} /{" "}
+                            {d.total_asientos.toLocaleString("es-AR")} asientos
+                          </span>
+                          <span className="font-semibold">{value}% ocupación</span>
+                        </div>
+                      )
+                    }}
+                    hideLabel
+                  />
+                }
+              />
+              <Bar dataKey="pct_ocupacion" radius={[4, 4, 0, 0]} maxBarSize={32}>
+                {vuelos.map((v) => (
+                  <Cell
+                    key={v.vuelo_id}
+                    fill={
+                      v.pct_ocupacion >= 90
+                        ? "var(--chart-4)"
+                        : "var(--chart-1)"
+                    }
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </figure>
       )}
 
       {/* Legend */}
-      <div className="mt-5 flex items-center gap-5 border-t border-border pt-4">
+      <div className="mt-4 flex items-center gap-5 border-t border-border pt-4">
         <div className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-primary" aria-hidden="true" />
+          <span
+            className="h-3 w-3 rounded-sm"
+            style={{ background: "var(--chart-1)" }}
+            aria-hidden="true"
+          />
           <span className="text-xs text-muted-foreground">Normal (&lt;90%)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-amber-500" aria-hidden="true" />
+          <span
+            className="h-3 w-3 rounded-sm"
+            style={{ background: "var(--chart-4)" }}
+            aria-hidden="true"
+          />
           <span className="text-xs text-muted-foreground">Lleno (≥90%)</span>
         </div>
       </div>

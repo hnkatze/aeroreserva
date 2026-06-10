@@ -1,12 +1,42 @@
+"use client"
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Cell,
+  Tooltip,
+} from "recharts"
 import type { RetrasoPorAerolinea } from "@/lib/reportes"
+import {
+  ChartContainer,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
 
 interface RetrasoAerolineaTableProps {
   aerolineas: RetrasoPorAerolinea[]
 }
 
+const chartConfig = {
+  retraso_min_prom_retrasados: {
+    label: "Demora prom. (min)",
+    color: "var(--chart-4)",
+  },
+} satisfies ChartConfig
+
 export function RetrasoAerolineaTable({
   aerolineas,
 }: RetrasoAerolineaTableProps) {
+  // Only show airlines with actual delays in the chart
+  const chartData = aerolineas.map((a) => ({
+    ...a,
+    nombre_corto: a.aerolinea_nombre ?? a.aerolinea_codigo,
+    demora: a.retraso_min_prom_retrasados ?? 0,
+  }))
+
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-5 py-4">
@@ -18,6 +48,84 @@ export function RetrasoAerolineaTable({
         </p>
       </div>
 
+      {/* ── Bar chart: demora promedio por aerolínea ───────────────── */}
+      {aerolineas.length > 0 && (
+        <div className="border-b border-border px-5 pt-5 pb-2">
+          <p className="mb-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Demora promedio sobre vuelos retrasados (minutos)
+          </p>
+          <figure aria-label="Gráfico de barras: demora promedio por aerolínea (columnas verticales)">
+            <figcaption className="sr-only">
+              Columnas verticales con la demora promedio en minutos por cada
+              aerolínea, calculada solo sobre los vuelos efectivamente
+              retrasados.
+            </figcaption>
+            <ChartContainer config={chartConfig} className="h-52 w-full">
+              <BarChart
+                accessibilityLayer
+                data={chartData}
+                margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              >
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="nombre_corto"
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 10 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={36}
+                  tickFormatter={(v: number) => `${v}m`}
+                />
+                <Tooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, _name, item) => {
+                        const d = item.payload as RetrasoPorAerolinea & {
+                          nombre_corto: string
+                          demora: number
+                        }
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium">{d.nombre_corto}</span>
+                            <span>
+                              {d.demora > 0
+                                ? `${d.demora} min de demora prom.`
+                                : "Sin retrasos"}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {d.vuelos_retrasados.toLocaleString("es-AR")} vuelos
+                              retrasados ({d.pct_retrasados}%)
+                            </span>
+                          </div>
+                        )
+                      }}
+                      hideLabel
+                    />
+                  }
+                />
+                <Bar dataKey="demora" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                  {chartData.map((a) => (
+                    <Cell
+                      key={a.aerolinea_codigo}
+                      fill={
+                        a.pct_retrasados >= 5
+                          ? "var(--destructive)"
+                          : "var(--chart-4)"
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          </figure>
+        </div>
+      )}
+
+      {/* ── Tabla de detalle ───────────────────────────────────────── */}
       <div className="overflow-x-auto">
         <table
           className="w-full text-sm"
