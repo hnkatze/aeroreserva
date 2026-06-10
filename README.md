@@ -1,36 +1,164 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AeroReserva
 
-## Getting Started
+> Sistema de reservas de vuelos para **agentes de viaje y cajeros de aerolínea**, construido como proyecto de **Administración de Bases de Datos**. El foco no es la interfaz, sino **lo que ocurre dentro de la base de datos**: transacciones ACID, control de concurrencia, integridad referencial, lógica en el motor (funciones y triggers), auditoría, roles y optimización.
 
-First, run the development server:
+Cada reserva es una **transacción ACID**; el sistema usa **bloqueos** (`SELECT ... FOR UPDATE`) para que dos reservas simultáneas del mismo asiento no se pisen, y mantiene **integridad referencial** estricta. Sobre ese núcleo se construyen capas de administración: funciones y triggers, una bitácora de auditoría automática, roles y permisos, una lista de espera con promoción automática, demostraciones de niveles de aislamiento y deadlocks, e índices y reportes.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+| Capa | Tecnología |
+|------|-----------|
+| Base de datos | PostgreSQL 17 (Docker) |
+| Acceso a datos | `pg` (node-postgres) — **SQL directo, sin ORM** |
+| Backend | Next.js 16 (App Router) · Route Handlers |
+| Frontend | React 19 · Tailwind CSS v4 · shadcn/ui (Base UI) |
+| Tipado | TypeScript (strict) |
+
+> El acceso a datos es **SQL directo sin ORM** a propósito: el proyecto necesita controlar transacciones, bloqueos y niveles de aislamiento de forma explícita.
+
+## Modelo de datos
+
+```mermaid
+erDiagram
+    aeropuertos ||--o{ vuelos : "origen"
+    aeropuertos ||--o{ vuelos : "destino"
+    vuelos      ||--o{ asientos : "tiene"
+    vuelos      ||--o{ reservas : "de"
+    asientos    ||--o| reservas : "ocupa"
+    pasajeros   ||--o{ reservas : "hace"
+    vuelos      ||--o{ lista_espera : "encola"
+    pasajeros   ||--o{ lista_espera : "espera"
+    operadores  ||--o{ sesiones : "abre"
+
+    aeropuertos {
+        text codigo PK
+        text ciudad
+        text pais
+    }
+    vuelos {
+        int id PK
+        text aerolinea
+        text origen FK
+        text destino FK
+        timestamptz salida
+        timestamptz llegada
+        text estado
+        int retraso_min
+    }
+    asientos {
+        int id PK
+        int vuelo_id FK
+        text numero
+        text clase
+        text estado
+    }
+    pasajeros {
+        int id PK
+        text nombre
+        text documento
+    }
+    reservas {
+        int id PK
+        int vuelo_id FK
+        int asiento_id FK
+        int pasajero_id FK
+        text estado
+        timestamptz fecha
+    }
+    lista_espera {
+        int id PK
+        int vuelo_id FK
+        int pasajero_id FK
+        int posicion
+        timestamptz fecha
+    }
+    bitacora {
+        int id PK
+        text tabla
+        text operacion
+        int registro_id
+        jsonb datos
+        text usuario_bd
+        timestamptz fecha
+    }
+    operadores {
+        int id PK
+        text username
+        text password_hash
+        text role
+        bool activo
+    }
+    sesiones {
+        uuid id PK
+        int operador_id FK
+        timestamptz expira_en
+    }
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Relaciones (llaves foráneas)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Tabla | Columna | Referencia |
+|-------|---------|-----------|
+| `vuelos` | `origen` | `aeropuertos(codigo)` |
+| `vuelos` | `destino` | `aeropuertos(codigo)` |
+| `asientos` | `vuelo_id` | `vuelos(id)` |
+| `reservas` | `vuelo_id` | `vuelos(id)` |
+| `reservas` | `asiento_id` | `asientos(id)` |
+| `reservas` | `pasajero_id` | `pasajeros(id)` |
+| `lista_espera` | `vuelo_id` | `vuelos(id)` |
+| `lista_espera` | `pasajero_id` | `pasajeros(id)` |
+| `sesiones` | `operador_id` | `operadores(id)` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Restricciones clave
 
-## Learn More
+- `asientos`: `UNIQUE (vuelo_id, numero)` — no hay dos asientos con el mismo número en un vuelo.
+- `reservas`: `UNIQUE (vuelo_id, asiento_id)` — **anti doble-reserva**: un asiento se vende una sola vez.
+- `pasajeros`: `documento` único.
+- `operadores`: `username` único; `role` ∈ `{agente, admin, consulta}`.
 
-To learn more about Next.js, take a look at the following resources:
+## Estado
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Área | Estado |
+|------|--------|
+| Autenticación de operadores (login, sesiones en DB, roles) | ✅ Implementado |
+| Capa de UI (dashboard, vuelos, asientos, reservas, lista de espera, reportes, auditoría, laboratorio) | ✅ Maquetada con datos de ejemplo |
+| Modelo de datos del catálogo (`aeropuertos`, `vuelos`, `asientos`) | 🔜 En progreso |
+| Reservas con concurrencia, funciones/triggers, lista de espera | 🔜 Pendiente |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+> Las pantallas operativas usan **datos de ejemplo** hasta que el catálogo de vuelos esté conectado.
 
-## Deploy on Vercel
+## Cómo correr
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Requisitos:** Node.js 20+, Docker (PostgreSQL 17).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# 1. Levantar PostgreSQL (contenedor postgres-dev, puerto 5432) y crear la base
+docker exec -i postgres-dev psql -U postgres -c "CREATE DATABASE aeroreserva"
+
+# 2. Configurar la conexión
+#    Crear .env.local con:
+#    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/aeroreserva"
+
+# 3. Instalar dependencias y aplicar migraciones
+npm install
+docker exec -i postgres-dev psql -U postgres -d aeroreserva < db/migrations/001_auth.sql
+
+# 4. Seed de un operador admin de desarrollo (admin / admin123)
+node --env-file=.env.local db/seed.mjs
+
+# 5. Arrancar
+npm run dev   # http://localhost:3000
+```
+
+## Conceptos de administración de BD demostrados
+
+- **Transacciones ACID** — reserva y cancelación atómicas.
+- **Concurrencia** — bloqueos (`FOR UPDATE`), anti doble-reserva, lista de espera.
+- **Niveles de aislamiento** — `READ COMMITTED` / `REPEATABLE READ` / `SERIALIZABLE` y sus anomalías.
+- **Deadlocks** — detección y resolución automática del motor.
+- **Programación en el motor** — funciones PL/pgSQL y triggers.
+- **Auditoría** — bitácora automática vía triggers.
+- **Seguridad** — roles y permisos (`GRANT`/`REVOKE`).
+- **Integridad** — llaves foráneas, `UNIQUE`, `NOT NULL`, `CHECK`.
+- **Optimización** — índices y `EXPLAIN ANALYZE`.
+- **Vistas** — reportes de ocupación.
