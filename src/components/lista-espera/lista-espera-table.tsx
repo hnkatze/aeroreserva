@@ -1,7 +1,6 @@
 "use client"
 
-import { ArrowUpCircleIcon } from "lucide-react"
-import { toast } from "sonner"
+import { InfoIcon } from "lucide-react"
 
 import {
   Table,
@@ -11,62 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import type { EntradaListaEspera } from "@/lib/lista-espera"
 
-// MOCK — pasajeros en lista de espera ordenados por posición
-interface PasajeroEspera {
-  posicion: number
-  pasajero: string
-  documento: string
-  vuelo: string
-  solicitado: string
-}
-
-const LISTA_ESPERA_MOCK: readonly PasajeroEspera[] = [
-  {
-    posicion: 1,
-    pasajero: "Valentina Torres",
-    documento: "DNI 32.847.190",
-    vuelo: "AR1204",
-    solicitado: "2025-07-18",
-  },
-  {
-    posicion: 2,
-    pasajero: "Marcos Delgado",
-    documento: "DNI 28.114.572",
-    vuelo: "AR1204",
-    solicitado: "2025-07-18",
-  },
-  {
-    posicion: 3,
-    pasajero: "Lucía Fernández",
-    documento: "DNI 40.223.881",
-    vuelo: "LA5502",
-    solicitado: "2025-07-19",
-  },
-  {
-    posicion: 4,
-    pasajero: "Rodrigo Paredes",
-    documento: "PAS AR-1029847",
-    vuelo: "AA7731",
-    solicitado: "2025-07-20",
-  },
-  {
-    posicion: 5,
-    pasajero: "Camila Ríos",
-    documento: "DNI 37.665.024",
-    vuelo: "IB6612",
-    solicitado: "2025-07-21",
-  },
-  {
-    posicion: 6,
-    pasajero: "Facundo Benítez",
-    documento: "DNI 25.930.417",
-    vuelo: "AR0850",
-    solicitado: "2025-07-22",
-  },
-] as const
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 
 function PosicionBadge({ posicion }: { posicion: number }) {
   const esPrimero = posicion === 1
@@ -86,37 +35,45 @@ function PosicionBadge({ posicion }: { posicion: number }) {
   )
 }
 
-function PromoverButton({
-  pasajero,
-  posicion,
-}: {
-  pasajero: PasajeroEspera
-  posicion: number
-}) {
-  const esPrimero = posicion === 1
-
-  function handlePromover() {
-    toast.success(`${pasajero.pasajero} promovido/a al vuelo ${pasajero.vuelo} (demo)`)
-  }
-
+/** Inline badge explaining that promotion is automatic. */
+function AutoPromocionNote() {
   return (
-    <Button
-      size={esPrimero ? "default" : "sm"}
-      className={cn(
-        esPrimero
-          ? "bg-amber-400 text-[#14275C] hover:bg-amber-300 focus-visible:ring-amber-400/50"
-          : "bg-muted text-foreground hover:bg-muted/70",
-      )}
-      onClick={handlePromover}
-      aria-label={`Promover a ${pasajero.pasajero} en el vuelo ${pasajero.vuelo}`}
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+      title="La promoción ocurre automáticamente vía trigger al cancelarse una reserva confirmada"
     >
-      <ArrowUpCircleIcon className="h-4 w-4" aria-hidden="true" />
-      Promover
-    </Button>
+      <InfoIcon className="h-3 w-3" aria-hidden="true" />
+      Automática
+    </span>
   )
 }
 
-export function ListaEsperaTable() {
+// ---------------------------------------------------------------------------
+// Empty state
+// ---------------------------------------------------------------------------
+
+function EmptyState() {
+  return (
+    <TableRow>
+      <TableCell
+        colSpan={6}
+        className="py-12 text-center text-sm text-muted-foreground"
+      >
+        No hay pasajeros en lista de espera.
+      </TableCell>
+    </TableRow>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
+interface ListaEsperaTableProps {
+  entradas: readonly EntradaListaEspera[]
+}
+
+export function ListaEsperaTable({ entradas }: ListaEsperaTableProps) {
   return (
     <div className="rounded-xl border border-border bg-card">
       <Table aria-label="Lista de espera">
@@ -127,40 +84,53 @@ export function ListaEsperaTable() {
             <TableHead>Documento</TableHead>
             <TableHead>Vuelo</TableHead>
             <TableHead>Solicitado</TableHead>
-            <TableHead className="pr-4 text-right">Acción</TableHead>
+            <TableHead className="pr-4 text-right">Promoción</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {LISTA_ESPERA_MOCK.map((entrada) => (
-            <TableRow
-              key={`${entrada.documento}-${entrada.vuelo}`}
-              className={cn(
-                entrada.posicion === 1 &&
-                  "bg-amber-50/60 dark:bg-amber-950/20",
-              )}
-            >
-              <TableCell className="pl-4">
-                <PosicionBadge posicion={entrada.posicion} />
-              </TableCell>
-              <TableCell className="font-medium text-foreground">
-                {entrada.pasajero}
-              </TableCell>
-              <TableCell>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {entrada.documento}
-                </span>
-              </TableCell>
-              <TableCell>
-                <span className="font-mono text-xs">{entrada.vuelo}</span>
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {entrada.solicitado}
-              </TableCell>
-              <TableCell className="pr-4 text-right">
-                <PromoverButton pasajero={entrada} posicion={entrada.posicion} />
-              </TableCell>
-            </TableRow>
-          ))}
+          {entradas.length === 0 ? (
+            <EmptyState />
+          ) : (
+            entradas.map((entrada) => (
+              <TableRow
+                key={entrada.id}
+                className={cn(
+                  entrada.posicion === 1 &&
+                    "bg-amber-50/60 dark:bg-amber-950/20",
+                )}
+              >
+                <TableCell className="pl-4">
+                  <PosicionBadge posicion={entrada.posicion} />
+                </TableCell>
+                <TableCell className="font-medium text-foreground">
+                  {entrada.pasajero_nombre}
+                </TableCell>
+                <TableCell>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {entrada.pasajero_documento}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className="font-mono text-xs">{entrada.vuelo_codigo}</span>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {entrada.creado_en.toLocaleDateString("es-AR", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  })}
+                </TableCell>
+                <TableCell className="pr-4 text-right">
+                  {/*
+                   * Promotion is fully automatic via the trg_promover_espera
+                   * PL/pgSQL trigger that fires on reservas UPDATE.
+                   * No manual action is required or exposed here.
+                   */}
+                  <AutoPromocionNote />
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>

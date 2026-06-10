@@ -2,13 +2,16 @@ import type { Metadata } from "next"
 import { InfoIcon } from "lucide-react"
 
 import { ListaEsperaTable } from "@/components/lista-espera/lista-espera-table"
+import { listarListaEspera } from "@/lib/lista-espera"
 
 export const metadata: Metadata = {
   title: "Lista de espera",
   description: "Pasajeros en espera y promoción automática.",
 }
 
-export default function ListaEsperaPage() {
+export default async function ListaEsperaPage() {
+  const entradas = await listarListaEspera()
+
   return (
     <div className="flex flex-col gap-8">
       {/* ── Encabezado ──────────────────────────────────────────────── */}
@@ -32,16 +35,17 @@ export default function ListaEsperaPage() {
           aria-hidden="true"
         />
         <p className="text-sm text-amber-800 dark:text-amber-300">
-          Cuando se cancela una reserva, el primero de la lista es promovido
-          automáticamente dentro de una transacción atómica. El botón{" "}
-          <strong className="font-semibold">Promover</strong> permite adelantar
-          el proceso de forma manual.
+          Cuando se cancela una reserva confirmada, el trigger{" "}
+          <strong className="font-semibold">trg_promover_espera</strong> promueve
+          automáticamente al primer pasajero de la lista: crea una reserva
+          confirmada, ocupa el asiento y marca la entrada como promovida.
+          Todo dentro de una única transacción atómica.
         </p>
       </aside>
 
       {/* ── Tabla ───────────────────────────────────────────────────── */}
       <section aria-label="Lista de pasajeros en espera">
-        <ListaEsperaTable />
+        <ListaEsperaTable entradas={entradas} />
       </section>
     </div>
   )
