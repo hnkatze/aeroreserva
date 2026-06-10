@@ -1,6 +1,12 @@
 import { cn } from "@/lib/utils"
 
-export type EstadoVuelo = "programado" | "retrasado" | "cancelado"
+export type EstadoVuelo =
+  | "programado"
+  | "abordando"
+  | "despegado"
+  | "aterrizado"
+  | "retrasado"
+  | "cancelado"
 
 interface EstadoVueloBadgeProps {
   estado: EstadoVuelo
@@ -11,6 +17,21 @@ const ESTADO_CONFIG = {
     label: "Programado",
     containerClass: "bg-sky-100 text-sky-700",
     dotClass: "bg-sky-500",
+  },
+  abordando: {
+    label: "Abordando",
+    containerClass: "bg-blue-100 text-blue-700",
+    dotClass: "bg-blue-500",
+  },
+  despegado: {
+    label: "Despegado",
+    containerClass: "bg-indigo-100 text-indigo-700",
+    dotClass: "bg-indigo-500",
+  },
+  aterrizado: {
+    label: "Aterrizado",
+    containerClass: "bg-green-100 text-green-700",
+    dotClass: "bg-green-500",
   },
   retrasado: {
     label: "Retrasado",
@@ -28,7 +49,7 @@ const ESTADO_CONFIG = {
 >
 
 export function EstadoVueloBadge({ estado }: EstadoVueloBadgeProps) {
-  const config = ESTADO_CONFIG[estado]
+  const config = ESTADO_CONFIG[estado] ?? ESTADO_CONFIG.programado
 
   return (
     <span

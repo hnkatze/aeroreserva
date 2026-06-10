@@ -1,5 +1,3 @@
-"use client"
-
 import Link from "next/link"
 import {
   Table,
@@ -12,31 +10,24 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { EstadoVueloBadge, type EstadoVuelo } from "./estado-vuelo-badge"
 import { cn } from "@/lib/utils"
+import type { VueloProximo } from "@/lib/dashboard"
 
-// MOCK: reemplazar cuando exista el catálogo de vuelos en la DB
-interface VueloRow {
-  codigo: string
-  origen: string
-  destino: string
-  salida: string
-  estado: EstadoVuelo
-  ocupacion: number
-}
-
-const VUELOS_MOCK: VueloRow[] = [
-  { codigo: "AR1304", origen: "SCL", destino: "GRU", salida: "08:40", estado: "programado", ocupacion: 78 },
-  { codigo: "AV8821", origen: "BOG", destino: "MDE", salida: "09:15", estado: "retrasado",  ocupacion: 92 },
-  { codigo: "LA5502", origen: "EZE", destino: "LIM", salida: "10:00", estado: "programado", ocupacion: 65 },
-  { codigo: "CM3317", origen: "PTY", destino: "GUA", salida: "11:30", estado: "cancelado",  ocupacion: 0  },
-  { codigo: "AR0701", origen: "AEP", destino: "MVD", salida: "12:45", estado: "programado", ocupacion: 55 },
-  { codigo: "LA9940", origen: "CCS", destino: "CUN", salida: "14:20", estado: "retrasado",  ocupacion: 88 },
-]
-
-function OcupacionBar({ pct }: { pct: number }) {
-  const isHigh = pct >= 90
+function OcupacionBar({
+  ocupados,
+  total,
+  pct,
+}: {
+  ocupados: number
+  total: number
+  pct: number | null
+}) {
+  const pctDisplay = pct ?? 0
+  const isHigh = pctDisplay >= 90
+  const label =
+    total > 0 ? `${ocupados}/${total} (${pctDisplay}%)` : "Sin asientos"
 
   return (
-    <div className="flex items-center gap-2" aria-label={`Ocupación: ${pct}%`}>
+    <div className="flex items-center gap-2" aria-label={`Ocupación: ${label}`}>
       {/* Track */}
       <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted" aria-hidden="true">
         <div
@@ -44,17 +35,31 @@ function OcupacionBar({ pct }: { pct: number }) {
             "h-full rounded-full transition-all",
             isHigh ? "bg-amber-500" : "bg-primary",
           )}
-          style={{ width: `${pct}%` }}
+          style={{ width: `${pctDisplay}%` }}
         />
       </div>
-      <span className="w-8 text-right font-mono text-xs text-muted-foreground">
-        {pct}%
+      <span className="w-[4.5rem] text-right font-mono text-xs text-muted-foreground">
+        {total > 0 ? `${ocupados}/${total}` : "—"}
       </span>
     </div>
   )
 }
 
-export function ProximosVuelosTable() {
+function formatSalida(salida: Date): string {
+  return new Intl.DateTimeFormat("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(salida))
+}
+
+interface ProximosVuelosTableProps {
+  vuelos: VueloProximo[]
+}
+
+export function ProximosVuelosTable({ vuelos }: ProximosVuelosTableProps) {
   return (
     <Card>
       {/* Custom header to keep the "Ver todos" link in the same row */}
@@ -83,38 +88,53 @@ export function ProximosVuelosTable() {
           </TableHeader>
 
           <TableBody>
-            {VUELOS_MOCK.map((vuelo) => (
-              <TableRow key={vuelo.codigo}>
-                <TableCell className="pl-5">
-                  <span className="font-mono text-sm font-medium text-foreground">
-                    {vuelo.codigo}
-                  </span>
-                </TableCell>
-
-                <TableCell>
-                  <span className="font-mono text-sm text-foreground">
-                    {vuelo.origen}
-                    <span className="sr-only"> a </span>
-                    <span className="mx-1 text-muted-foreground" aria-hidden="true">→</span>
-                    {vuelo.destino}
-                  </span>
-                </TableCell>
-
-                <TableCell>
-                  <span className="font-mono text-sm text-foreground">
-                    {vuelo.salida}
-                  </span>
-                </TableCell>
-
-                <TableCell>
-                  <EstadoVueloBadge estado={vuelo.estado} />
-                </TableCell>
-
-                <TableCell className="pr-5">
-                  <OcupacionBar pct={vuelo.ocupacion} />
+            {vuelos.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="pl-5 py-8 text-center text-sm text-muted-foreground"
+                >
+                  No hay vuelos próximos
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              vuelos.map((vuelo) => (
+                <TableRow key={vuelo.id}>
+                  <TableCell className="pl-5">
+                    <span className="font-mono text-sm font-medium text-foreground">
+                      {vuelo.codigo}
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    <span className="font-mono text-sm text-foreground">
+                      {vuelo.origen}
+                      <span className="sr-only"> a </span>
+                      <span className="mx-1 text-muted-foreground" aria-hidden="true">→</span>
+                      {vuelo.destino}
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    <span className="font-mono text-sm text-foreground">
+                      {formatSalida(vuelo.salida)}
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    <EstadoVueloBadge estado={vuelo.estado as EstadoVuelo} />
+                  </TableCell>
+
+                  <TableCell className="pr-5">
+                    <OcupacionBar
+                      ocupados={vuelo.asientos_ocupados}
+                      total={vuelo.asientos_total}
+                      pct={vuelo.pct_ocupacion}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </CardContent>

@@ -1,10 +1,5 @@
 import type { Metadata } from "next"
 import { getCurrentOperator } from "@/lib/auth"
-
-export const metadata: Metadata = {
-  title: "Inicio",
-  description: "Resumen operativo del día: vuelos, reservas y lista de espera.",
-}
 import {
   PlaneIcon,
   TicketIcon,
@@ -13,42 +8,25 @@ import {
 } from "lucide-react"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { ProximosVuelosTable } from "@/components/dashboard/proximos-vuelos-table"
+import { kpisDashboard, proximosVuelos } from "@/lib/dashboard"
 
-// KPI data — MOCK: reemplazar cuando existan las queries reales sobre el catálogo de vuelos/reservas
-const KPI_DATA = [
-  {
-    label: "Vuelos hoy",
-    value: "48",
-    icon: PlaneIcon,
-    trend: "+12% vs ayer",
-    accent: false,
-  },
-  {
-    label: "Reservas activas",
-    value: "1,247",
-    icon: TicketIcon,
-    trend: "+8% vs ayer",
-    accent: false,
-  },
-  {
-    label: "Ocupación promedio",
-    value: "82%",
-    icon: TrendingUpIcon,
-    trend: "Promedio de la flota",
-    accent: true, // renders with amber brand accent
-  },
-  {
-    label: "En lista de espera",
-    value: "23",
-    icon: HourglassIcon,
-    trend: "4 promovidos hoy",
-    accent: false,
-  },
-] as const
+export const metadata: Metadata = {
+  title: "Inicio",
+  description: "Resumen operativo del día: vuelos, reservas y lista de espera.",
+}
 
 export default async function DashboardHomePage() {
   // Layout already validates auth; this call is safe and returns the operator
-  const operator = await getCurrentOperator()
+  const [operator, kpis, vuelos] = await Promise.all([
+    getCurrentOperator(),
+    kpisDashboard(),
+    proximosVuelos({ limit: 8 }),
+  ])
+
+  const ocupacionLabel =
+    kpis.ocupacionPromedio !== null
+      ? `${kpis.ocupacionPromedio}%`
+      : "—"
 
   return (
     <div className="flex flex-col gap-8">
@@ -68,23 +46,45 @@ export default async function DashboardHomePage() {
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
           role="list"
         >
-          {KPI_DATA.map((kpi) => (
-            <li key={kpi.label}>
-              <KpiCard
-                label={kpi.label}
-                value={kpi.value}
-                icon={kpi.icon}
-                trend={kpi.trend}
-                accent={kpi.accent}
-              />
-            </li>
-          ))}
+          <li>
+            <KpiCard
+              label="Reservas activas"
+              value={kpis.reservasActivas.toLocaleString("es-AR")}
+              icon={TicketIcon}
+              trend="Estado: confirmada"
+            />
+          </li>
+          <li>
+            <KpiCard
+              label="Ocupación promedio"
+              value={ocupacionLabel}
+              icon={TrendingUpIcon}
+              trend="Vuelos con pasajeros"
+              accent
+            />
+          </li>
+          <li>
+            <KpiCard
+              label="Vuelos retrasados"
+              value={kpis.vuelosRetrasados.toLocaleString("es-AR")}
+              icon={PlaneIcon}
+              trend="Estado: retrasado"
+            />
+          </li>
+          <li>
+            <KpiCard
+              label="En lista de espera"
+              value={kpis.enListaEspera.toLocaleString("es-AR")}
+              icon={HourglassIcon}
+              trend="Estado: esperando"
+            />
+          </li>
         </ul>
       </section>
 
       {/* ── Upcoming flights ──────────────────────────────────────── */}
       <section aria-label="Próximos vuelos">
-        <ProximosVuelosTable />
+        <ProximosVuelosTable vuelos={vuelos} />
       </section>
     </div>
   )
