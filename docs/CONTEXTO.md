@@ -65,6 +65,8 @@ src/
   - `002_catalogo.sql` — `aeropuertos`, `vuelos`, `asientos`
   - `003_reservas.sql` — `pasajeros`, `reservas` (+ índice UNIQUE parcial anti doble-reserva)
   - `005_aerolineas.sql` — `aerolineas` + FK `vuelos.aerolinea_codigo`
+  - `006_roles.sql` — roles `app_consulta` / `app_agente` / `app_admin` + GRANT/REVOKE por tabla
+  - `007_bitacora.sql` — `bitacora` + función trigger `registrar_bitacora()` (SECURITY DEFINER) + triggers en reservas/asientos/pasajeros
   - (no existe `004`; la lista de espera quedó pendiente)
 - **Auth:** login de extremo a extremo, password scrypt, sesiones server-side en `sesiones`.
   Protección de rutas en `src/proxy.ts` (chequeo optimista de cookie → redirect a `/login`).
@@ -88,7 +90,8 @@ src/
 | Home (KPIs, próximos vuelos) | 🟡 **Mock** | Datos hardcodeados. |
 | Reportes (ocupación) | 🟡 **Mock** | KPIs + barras + tabla de ejemplo. |
 | Lista de espera | 🟡 **Mock** | Cola visual; sin lógica real. |
-| Auditoría (bitácora) | 🟡 **Mock** | Sin triggers que la llenen. |
+| **Auditoría** (bitácora) | ✅ **Real (DB)** | Triggers AFTER INSERT/UPDATE/DELETE en reservas/asientos/pasajeros → `bitacora` (JSONB old/new + operador vía `app.current_operator`). `/auditoria` conectada. |
+| **Roles/permisos DB** | ✅ **Real (motor)** | 3 roles Postgres con GRANT/REVOKE por tabla (`db/demo-roles.mjs` lo demuestra). La app aún se conecta como `postgres`. |
 | Laboratorio de concurrencia | 🟡 **Simulación** | Anima escenarios **sin** ejecutar SQL real. |
 
 ---
@@ -157,21 +160,21 @@ sí ayuda (reduce filas transferidas); un índice parcial extra en `asientos` no
 ## 6. Lo que falta — roadmap
 
 Hecho ✅: catálogo en DB · capa de datos de vuelos/asientos · **reservas transaccionales
-anti doble-reserva** · aerolíneas relacionadas · paginación e índices base.
+anti doble-reserva** · aerolíneas relacionadas · paginación e índices base ·
+**roles y permisos (GRANT/REVOKE)** · **auditoría con triggers** (bitácora JSONB + operador).
 
 Pendiente (ordenado por dependencia / valor):
 1. **Conectar `/asientos`** (mapa interactivo) y los **filtros de `/vuelos`** a datos reales.
 2. **Lista de espera con promoción** — encolar + promover al liberarse un asiento (función/trigger).
-3. **Auditoría real** — triggers `AFTER INSERT/UPDATE/DELETE` que escriban en `bitacora`;
-   conectar `/auditoria`. (Decidir cómo registrar el operador: la bitácora usa `usuario_bd`
-   pero el pool tiene un solo usuario → pasar contexto con `SET LOCAL`.)
-4. **Roles y permisos** — `GRANT`/`REVOKE` mapeados a `agente / admin / consulta`.
-5. **Reportes con SQL real** — vistas de ocupación + `EXPLAIN ANALYZE`.
-6. **Home con datos reales** — KPIs y próximos vuelos.
-7. **Laboratorio ejecutable** (diferencial) — correr los escenarios de aislamiento/deadlock
+3. **Reportes con SQL real** — vistas de ocupación + `EXPLAIN ANALYZE`.
+4. **Home con datos reales** — KPIs y próximos vuelos.
+5. **Laboratorio ejecutable** (diferencial) — correr los escenarios de aislamiento/deadlock
    contra la DB, no solo animarlos. (El stress test de `db/` ya es una base.)
-8. **Más diversidad de rutas** — el importer valida ~370 rutas de 67k (filtro estricto); con
+6. **Más diversidad de rutas** — el importer valida ~370 rutas de 67k (filtro estricto); con
    más rutas aparecerían más aerolíneas.
+7. **Auditoría — pendientes menores**: `cancelarReserva` no registra operador (queda NULL); el
+   dropdown de filtros de `/auditoria` lista tablas mock. La app podría usar `SET ROLE` por
+   operador para que los permisos de §7 apliquen de verdad (defense-in-depth).
 
 ---
 
