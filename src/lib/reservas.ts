@@ -177,10 +177,24 @@ export async function crearReserva(
 // listarReservas
 // ---------------------------------------------------------------------------
 
+export interface ListarReservasOpts {
+  /** Maximum number of records to return. Defaults to 25. */
+  limit?: number;
+  /** Number of records to skip. Defaults to 0. */
+  offset?: number;
+}
+
 /**
- * Return all reservations with their associated passenger, flight and seat data.
+ * Return a paginated list of reservations with their associated passenger,
+ * flight and seat data, ordered by creation date descending.
+ * Defaults: limit = 25, offset = 0.
  */
-export async function listarReservas(): Promise<ReservaCompleta[]> {
+export async function listarReservas(
+  opts: ListarReservasOpts = {},
+): Promise<ReservaCompleta[]> {
+  const limit = opts.limit ?? 25;
+  const offset = opts.offset ?? 0;
+
   return query<ReservaCompleta>(
     `SELECT
        r.id,
@@ -195,8 +209,25 @@ export async function listarReservas(): Promise<ReservaCompleta[]> {
      JOIN pasajeros  p ON p.id = r.pasajero_id
      JOIN vuelos     v ON v.id = r.vuelo_id
      JOIN asientos   a ON a.id = r.asiento_id
-    ORDER BY r.creado_en DESC`,
+    ORDER BY r.creado_en DESC
+    LIMIT $1 OFFSET $2`,
+    [limit, offset],
   );
+}
+
+// ---------------------------------------------------------------------------
+// contarReservas
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the total count of reservations (all states).
+ * Used for pagination metadata.
+ */
+export async function contarReservas(): Promise<number> {
+  const rows = await query<{ total: string }>(
+    `SELECT COUNT(*) AS total FROM reservas`,
+  );
+  return Number(rows[0]?.total ?? 0);
 }
 
 // ---------------------------------------------------------------------------

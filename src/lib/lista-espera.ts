@@ -24,19 +24,32 @@ export interface EntradaListaEspera {
 // listarListaEspera
 // ---------------------------------------------------------------------------
 
+export interface ListarListaEsperaOpts {
+  /** Also include promoted rows (estado = 'promovida'). Defaults to false. */
+  incluirPromovidas?: boolean;
+  /** Maximum number of records to return. Defaults to 25. */
+  limit?: number;
+  /** Number of records to skip. Defaults to 0. */
+  offset?: number;
+}
+
 /**
- * Return all active waitlist entries (estado = 'esperando') ordered by
- * flight then by position within the flight.
+ * Return a paginated list of waitlist entries (estado = 'esperando' by default)
+ * ordered by flight then by position within the flight.
  *
  * Optional: pass { incluirPromovidas: true } to also include promoted rows
  * (useful for audit / reporting views).
+ * Defaults: limit = 25, offset = 0.
  */
 export async function listarListaEspera(
-  opts: { incluirPromovidas?: boolean } = {},
+  opts: ListarListaEsperaOpts = {},
 ): Promise<EntradaListaEspera[]> {
   const estadoFilter = opts.incluirPromovidas
     ? `le.estado IN ('esperando', 'promovida')`
     : `le.estado = 'esperando'`;
+
+  const limit = opts.limit ?? 25;
+  const offset = opts.offset ?? 0;
 
   return query<EntradaListaEspera>(
     `SELECT
@@ -51,8 +64,36 @@ export async function listarListaEspera(
      JOIN pasajeros p ON p.id = le.pasajero_id
      JOIN vuelos    v ON v.id = le.vuelo_id
     WHERE ${estadoFilter}
-    ORDER BY v.codigo, le.posicion, le.id`,
+    ORDER BY v.codigo, le.posicion, le.id
+    LIMIT $1 OFFSET $2`,
+    [limit, offset],
   );
+}
+
+// ---------------------------------------------------------------------------
+// contarListaEspera
+// ---------------------------------------------------------------------------
+
+export interface ContarListaEsperaOpts {
+  /** Also count promoted rows. Defaults to false. */
+  incluirPromovidas?: boolean;
+}
+
+/**
+ * Return the total count of waitlist entries matching the filter.
+ * Used for pagination metadata.
+ */
+export async function contarListaEspera(
+  opts: ContarListaEsperaOpts = {},
+): Promise<number> {
+  const estadoFilter = opts.incluirPromovidas
+    ? `estado IN ('esperando', 'promovida')`
+    : `estado = 'esperando'`;
+
+  const rows = await query<{ total: string }>(
+    `SELECT COUNT(*) AS total FROM lista_espera WHERE ${estadoFilter}`,
+  );
+  return Number(rows[0]?.total ?? 0);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,16 +1,40 @@
+import Link from "next/link"
 import type { Metadata } from "next"
 import { InfoIcon } from "lucide-react"
 
 import { ListaEsperaTable } from "@/components/lista-espera/lista-espera-table"
-import { listarListaEspera } from "@/lib/lista-espera"
+import { listarListaEspera, contarListaEspera } from "@/lib/lista-espera"
 
 export const metadata: Metadata = {
   title: "Lista de espera",
   description: "Pasajeros en espera y promoción automática.",
 }
 
-export default async function ListaEsperaPage() {
-  const entradas = await listarListaEspera()
+const PAGE_SIZE = 25
+
+interface ListaEsperaPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+export default async function ListaEsperaPage({ searchParams }: ListaEsperaPageProps) {
+  const sp = await searchParams
+
+  const rawPage = sp["page"]
+  const page = Math.max(1, Number(Array.isArray(rawPage) ? rawPage[0] : (rawPage ?? "1")))
+  const offset = (page - 1) * PAGE_SIZE
+
+  const [entradas, total] = await Promise.all([
+    listarListaEspera({ limit: PAGE_SIZE, offset }),
+    contarListaEspera(),
+  ])
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const hasPrev = page > 1
+  const hasNext = page < totalPages
+
+  function pageHref(p: number): string {
+    return `?page=${p}`
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -47,6 +71,53 @@ export default async function ListaEsperaPage() {
       <section aria-label="Lista de pasajeros en espera">
         <ListaEsperaTable entradas={entradas} />
       </section>
+
+      {/* ── Paginación ──────────────────────────────────────────────── */}
+      {totalPages > 1 && (
+        <nav
+          aria-label="Navegación de páginas de lista de espera"
+          className="flex items-center justify-between gap-4 text-sm"
+        >
+          <span className="text-muted-foreground">
+            Página {page} de {totalPages}{" "}
+            <span className="text-xs">({total} entradas en total)</span>
+          </span>
+          <div className="flex items-center gap-2">
+            {hasPrev ? (
+              <Link
+                href={pageHref(page - 1)}
+                className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Ir a la página anterior, página ${page - 1}`}
+              >
+                Anterior
+              </Link>
+            ) : (
+              <span
+                className="cursor-not-allowed rounded-md border border-border bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground"
+                aria-disabled="true"
+              >
+                Anterior
+              </span>
+            )}
+            {hasNext ? (
+              <Link
+                href={pageHref(page + 1)}
+                className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Ir a la página siguiente, página ${page + 1}`}
+              >
+                Siguiente
+              </Link>
+            ) : (
+              <span
+                className="cursor-not-allowed rounded-md border border-border bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground"
+                aria-disabled="true"
+              >
+                Siguiente
+              </span>
+            )}
+          </div>
+        </nav>
+      )}
     </div>
   )
 }

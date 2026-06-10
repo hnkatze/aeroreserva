@@ -34,15 +34,41 @@ export class UsernameConflictError extends Error {
   }
 }
 
+export interface ListarOperadoresOpts {
+  /** Maximum number of records to return. Defaults to 25. */
+  limit?: number;
+  /** Number of records to skip. Defaults to 0. */
+  offset?: number;
+}
+
 /**
- * Return all operators without exposing password_hash.
+ * Return a paginated list of operators without exposing password_hash.
+ * Defaults: limit = 25, offset = 0.
  */
-export async function listarOperadores(): Promise<Operador[]> {
+export async function listarOperadores(
+  opts: ListarOperadoresOpts = {},
+): Promise<Operador[]> {
+  const limit = opts.limit ?? 25;
+  const offset = opts.offset ?? 0;
+
   return query<Operador>(
     `SELECT id, username, role, activo, creado_en
        FROM operadores
-      ORDER BY creado_en DESC`,
+      ORDER BY creado_en DESC
+      LIMIT $1 OFFSET $2`,
+    [limit, offset],
   );
+}
+
+/**
+ * Return the total count of operators.
+ * Used for pagination metadata.
+ */
+export async function contarOperadores(): Promise<number> {
+  const rows = await query<{ total: string }>(
+    `SELECT COUNT(*) AS total FROM operadores`,
+  );
+  return Number(rows[0]?.total ?? 0);
 }
 
 /**

@@ -39,8 +39,10 @@ interface BitacoraRow extends QueryResultRow {
 // ---------------------------------------------------------------------------
 
 export interface ListarBitacoraOpts {
-  /** Maximum number of records to return. Defaults to 100. */
+  /** Maximum number of records to return. Defaults to 25. */
   limit?: number;
+  /** Number of records to skip. Defaults to 0. */
+  offset?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,15 +50,17 @@ export interface ListarBitacoraOpts {
 // ---------------------------------------------------------------------------
 
 /**
- * Return the most recent audit log entries, newest first.
+ * Return a paginated list of audit log entries, newest first.
  * JSONB columns (datos_anteriores, datos_nuevos) are returned as plain
  * objects by the pg driver — typed as Record<string, unknown> to avoid
  * any / unknown leakage into callers.
+ * Defaults: limit = 25, offset = 0.
  */
 export async function listarBitacora(
   opts: ListarBitacoraOpts = {},
 ): Promise<RegistroBitacora[]> {
-  const limit = opts.limit ?? 100;
+  const limit = opts.limit ?? 25;
+  const offset = opts.offset ?? 0;
 
   const rows = await query<BitacoraRow>(
     `SELECT
@@ -71,9 +75,24 @@ export async function listarBitacora(
        creado_en
      FROM bitacora
      ORDER BY creado_en DESC
-     LIMIT $1`,
-    [limit],
+     LIMIT $1 OFFSET $2`,
+    [limit, offset],
   );
 
   return rows;
+}
+
+// ---------------------------------------------------------------------------
+// contarBitacora
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the total count of audit log entries.
+ * Used for pagination metadata.
+ */
+export async function contarBitacora(): Promise<number> {
+  const rows = await query<{ total: string }>(
+    `SELECT COUNT(*) AS total FROM bitacora`,
+  );
+  return Number(rows[0]?.total ?? 0);
 }

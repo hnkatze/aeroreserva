@@ -143,35 +143,46 @@ export function ReservasTable({ reservas }: ReservasTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {reservas.map((reserva) => (
-            <TableRow key={reserva.id}>
-              <TableCell className="pl-4">
-                <span className="font-mono text-xs text-muted-foreground">
-                  {`RSV-${String(reserva.id).padStart(5, "0")}`}
-                </span>
-              </TableCell>
-              <TableCell className="font-medium">
-                {reserva.pasajero_nombre}
-              </TableCell>
-              <TableCell>
-                <span className="font-mono text-xs">{reserva.vuelo_codigo}</span>
-              </TableCell>
-              <TableCell>
-                <span className="font-mono text-xs">
-                  {reserva.asiento_numero}
-                </span>
-              </TableCell>
-              <TableCell>
-                <EstadoReservaBadge estado={toEstadoBadge(reserva.estado)} />
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {formatFecha(reserva.fecha)}
-              </TableCell>
-              <TableCell className="pr-4 text-right">
-                <ReservaActionsMenu reserva={reserva} />
+          {reservas.length === 0 ? (
+            <TableRow>
+              <TableCell
+                colSpan={7}
+                className="py-12 text-center text-sm text-muted-foreground"
+              >
+                No hay reservas en esta página.
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            reservas.map((reserva) => (
+              <TableRow key={reserva.id}>
+                <TableCell className="pl-4">
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {`RSV-${String(reserva.id).padStart(5, "0")}`}
+                  </span>
+                </TableCell>
+                <TableCell className="font-medium">
+                  {reserva.pasajero_nombre}
+                </TableCell>
+                <TableCell>
+                  <span className="font-mono text-xs">{reserva.vuelo_codigo}</span>
+                </TableCell>
+                <TableCell>
+                  <span className="font-mono text-xs">
+                    {reserva.asiento_numero}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <EstadoReservaBadge estado={toEstadoBadge(reserva.estado)} />
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatFecha(reserva.fecha)}
+                </TableCell>
+                <TableCell className="pr-4 text-right">
+                  <ReservaActionsMenu reserva={reserva} />
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>
