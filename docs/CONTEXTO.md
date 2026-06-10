@@ -218,6 +218,10 @@ Pendiente (ordenado por dependencia / valor):
 - **Las reglas en `.claude/rules/` mezclan ejemplos de Angular** — es React/Next: aplicar el
   *principio*, no la API de Angular.
 - **Metadata sólo en Server Components** — `/login` es Client Component.
+- **Charts con Recharts** — `/reportes` y el home usan Recharts (shadcn `ui/chart.tsx`), barras
+  **verticales** (columnas). Son `"use client"`; las páginas Server pasan los datos por props.
+  Gotcha: una captura `fullPage` de Playwright puede mostrarlos vacíos (el resize colapsa el
+  `ResponsiveContainer`) — es artefacto de la captura, en el navegador renderizan bien.
 - **Paginación en todos los listados** — `/vuelos`, `/reservas`, `/auditoria`, `/lista-espera`,
   `/usuarios` paginan server-side (25/pág, `?page`) con `listarX({limit,offset})` + `contarX()`.
   No traer tablas enteras es parte de administrar bien la DB.
