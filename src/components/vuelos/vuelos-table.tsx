@@ -18,29 +18,6 @@ import type { Vuelo } from "@/lib/vuelos"
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Map IATA airline prefix (first 2 chars of flight code) to full name.
- * Unknown prefixes fall back to the prefix itself.
- */
-const AIRLINE_NAMES: Readonly<Record<string, string>> = {
-  LA: "LATAM",
-  AR: "Aerolíneas Argentinas",
-  AV: "Avianca",
-  CM: "Copa Airlines",
-  AA: "American Airlines",
-  UA: "United Airlines",
-  DL: "Delta Air Lines",
-  IB: "Iberia",
-  JJ: "LATAM Brasil",
-  G3: "Gol",
-  AD: "Azul",
-} as const
-
-function airlineName(codigo: string): string {
-  const prefix = codigo.slice(0, 2).toUpperCase()
-  return AIRLINE_NAMES[prefix] ?? prefix
-}
-
 function formatHora(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date
   return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })
@@ -110,7 +87,7 @@ export function VuelosTable({ vuelos }: VuelosTableProps) {
                   {/* Aerolínea */}
                   <TableCell>
                     <span className="text-sm text-foreground">
-                      {airlineName(vuelo.codigo)}
+                      {vuelo.aerolinea_nombre ?? vuelo.aerolinea_codigo ?? "—"}
                     </span>
                   </TableCell>
 

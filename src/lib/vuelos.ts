@@ -7,6 +7,8 @@ export interface Vuelo {
   destino: string;
   salida: Date;
   llegada: Date;
+  aerolinea_codigo: string | null;
+  aerolinea_nombre: string | null;
 }
 
 export interface VuelosListOptions {
@@ -16,15 +18,24 @@ export interface VuelosListOptions {
 
 /**
  * Return a paginated list of flights ordered by departure time.
+ * Includes airline name via LEFT JOIN with aerolineas.
  * Defaults: limit = 25, offset = 0.
  */
 export async function listarVuelos(opts: VuelosListOptions = {}): Promise<Vuelo[]> {
   const limit = opts.limit ?? 25;
   const offset = opts.offset ?? 0;
   return query<Vuelo>(
-    `SELECT id, codigo, origen, destino, salida, llegada
-       FROM vuelos
-      ORDER BY salida ASC
+    `SELECT v.id,
+            v.codigo,
+            v.origen,
+            v.destino,
+            v.salida,
+            v.llegada,
+            v.aerolinea_codigo,
+            a.nombre AS aerolinea_nombre
+       FROM vuelos v
+       LEFT JOIN aerolineas a ON a.codigo = v.aerolinea_codigo
+      ORDER BY v.salida ASC
       LIMIT $1 OFFSET $2`,
     [limit, offset],
   );
