@@ -70,6 +70,7 @@ src/
   - `008_lista_espera.sql` — `lista_espera` + función/trigger `promover_lista_espera()` (promoción automática al cancelar)
   - `009_reportes.sql` — vistas `v_ocupacion_vuelo`, `v_ocupacion_aerolinea`, `v_resumen_kpis`
   - `010_estado_vuelo.sql` — `vuelos.estado` (programado/abordando/despegado/aterrizado/retrasado/cancelado) + `retraso_min`
+  - `011_reportes_extra.sql` — vistas `v_vuelos_por_estado`, `v_ocupacion_ruta`, `v_retraso_aerolinea`, `v_top_aeropuertos`
   - (no existe `004`; quedó hueco en la numeración)
 - **Auth:** login de extremo a extremo, password scrypt, sesiones server-side en `sesiones`.
   Protección de rutas en `src/proxy.ts` (chequeo optimista de cookie → redirect a `/login`).
@@ -90,7 +91,7 @@ src/
 | **Reservas** (crear/listar/cancelar) | ✅ **Real (DB)** | `crearReserva` transaccional (`FOR UPDATE` + UNIQUE parcial), diálogo conectado, cancelar (soft) cableado. Verificado end-to-end en navegador. |
 | **Asientos** (consulta) | ✅ **Real (DB)** | Vía `GET /api/vuelos/[id]/asientos?soloLibres` (lo usa el diálogo de reserva). |
 | **Asientos** (mapa `/asientos`) | ✅ **Real (DB)** | El mapa se alimenta de los asientos reales del vuelo (`?vuelo=CODIGO`). |
-| Home (KPIs, próximos vuelos) | 🟡 **Mock** | Datos hardcodeados. |
+| **Home / Dashboard** | ✅ **Real (DB)** | KPIs reales (ocupación promedio sobre vuelos con reservas) + próximos vuelos con estado/ocupación (`src/lib/dashboard.ts`). |
 | **Reportes** (ocupación) | ✅ **Real (DB)** | Vistas SQL de ocupación por vuelo/aerolínea + KPIs. |
 | **Lista de espera** | ✅ **Real (DB)** | Tabla `lista_espera` + trigger PL/pgSQL que promueve automáticamente al cancelarse una reserva. |
 | **Auditoría** (bitácora) | ✅ **Real (DB)** | Triggers AFTER INSERT/UPDATE/DELETE en reservas/asientos/pasajeros → `bitacora` (JSONB old/new + operador vía `app.current_operator`). `/auditoria` conectada. |
@@ -130,9 +131,10 @@ la cuenta `gh` de `hnkatze` y pushear por HTTPS.
 - ~6.071 **aeropuertos** reales (IATA) · 6.667 **vuelos** · **1.000.050 asientos** (150/vuelo)
 - 5 **aerolíneas** (ICAO): TOM=Thomsonfly, TCX=Thomas Cook, IOS=Isles of Scilly Skybus,
   NHG=NHT Lineas Aereas, ABJ=Abaet.
-- **Ruido de demo** (`db/seed-ruido.mjs`): ~4.350 reservas confirmadas en ~70 vuelos
-  (ocupación variada, hasta ~95%), y estados variados (retrasado/abordando/despegado/
-  aterrizado/cancelado) en ~420 vuelos.
+- **Ruido de demo** (`db/seed-ruido.mjs`): ~428k reservas confirmadas → **~43% de ocupación
+  global**, distribución variada por vuelo (0%–99%), y estados variados (retrasado/abordando/
+  despegado/aterrizado/cancelado) en ~420 vuelos. El seed usa **carga masiva con triggers
+  deshabilitados** (técnica DBA: `DISABLE TRIGGER` → bulk `INSERT...SELECT` → re-`ENABLE`).
 
 **Scripts** (se corren con `node`, no hay tarea npm):
 | Script | Para qué |
@@ -168,15 +170,16 @@ sí ayuda (reduce filas transferidas); un índice parcial extra en `asientos` no
 Hecho ✅: catálogo en DB · capa de datos · **reservas transaccionales anti doble-reserva** ·
 aerolíneas relacionadas · paginación e índices · **roles y permisos (GRANT/REVOKE)** ·
 **auditoría con triggers** · **lista de espera con promoción automática (PL/pgSQL)** ·
-**reportes con vistas SQL** · filtros de vuelos + mapa de asientos reales.
+**reportes con vistas SQL** (ocupación, rutas, retrasos, aeropuertos) · filtros de vuelos +
+mapa de asientos reales · **dashboard con datos reales** · **paginación en todos los listados** ·
+ruido de demo (~43% ocupación).
 
 Pendiente (ordenado por dependencia / valor):
-1. **Home con datos reales** — KPIs y próximos vuelos (sigue mock).
-2. **Laboratorio ejecutable** (diferencial) — correr los escenarios de aislamiento/deadlock
+1. **Laboratorio ejecutable** (diferencial) — correr los escenarios de aislamiento/deadlock
    contra la DB, no solo animarlos. (El stress test de `db/` ya es una base.)
-3. **Más diversidad de rutas** — el importer valida ~370 rutas de 67k (filtro estricto); con
+2. **Más diversidad de rutas** — el importer valida ~370 rutas de 67k (filtro estricto); con
    más rutas aparecerían más aerolíneas.
-4. **Pendientes menores**: `cancelarReserva` no registra operador en bitácora (queda NULL); el
+3. **Pendientes menores**: `cancelarReserva` no registra operador en bitácora (queda NULL); el
    dropdown de filtros de `/auditoria` lista tablas mock. La app podría usar `SET ROLE` por
    operador para que los permisos apliquen de verdad (defense-in-depth).
 
