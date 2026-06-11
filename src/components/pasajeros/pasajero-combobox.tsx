@@ -222,8 +222,17 @@ export function PasajeroCombobox({
     }
   }
 
-  function handleCreateSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  // Confirm with Enter from the create-mode inputs WITHOUT bubbling to the
+  // outer dialog <form> (the create UI is a <div>, not a nested form).
+  function handleCreateKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      e.stopPropagation()
+      handleUsarPasajeroClick()
+    }
+  }
+
+  function handleUsarPasajeroClick() {
     const errors: { nombre?: string; documento?: string } = {}
     if (!createNombre.trim()) errors.nombre = "El nombre es requerido"
     if (!createDocumento.trim()) errors.documento = "El documento es requerido"
@@ -410,7 +419,7 @@ export function PasajeroCombobox({
 
           {/* ── Create mode ─────────────────────────────────────────────── */}
           {mode === "create" && (
-            <form onSubmit={handleCreateSubmit} noValidate>
+            <div>
               <div className="flex flex-col gap-3 px-3 py-3">
                 <p className="text-xs font-medium text-muted-foreground">
                   Nuevo pasajero
@@ -435,6 +444,7 @@ export function PasajeroCombobox({
                         setCreateErrors((prev) => ({ ...prev, nombre: undefined }))
                       }
                     }}
+                    onKeyDown={handleCreateKeyDown}
                     placeholder="ej. María García"
                     aria-describedby={
                       createErrors.nombre ? createNombreErrorId : undefined
@@ -478,6 +488,7 @@ export function PasajeroCombobox({
                         }))
                       }
                     }}
+                    onKeyDown={handleCreateKeyDown}
                     placeholder="ej. 30456789"
                     aria-describedby={
                       createErrors.documento ? createDocumentoErrorId : undefined
@@ -510,7 +521,8 @@ export function PasajeroCombobox({
                     ← Volver a la búsqueda
                   </button>
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleUsarPasajeroClick}
                     className={cn(
                       "rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors",
                       "hover:bg-primary/90",
@@ -521,7 +533,7 @@ export function PasajeroCombobox({
                   </button>
                 </div>
               </div>
-            </form>
+            </div>
           )}
         </div>
       )}
