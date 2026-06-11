@@ -83,7 +83,9 @@ src/
 - **Auth:** login de extremo a extremo, password scrypt, sesiones server-side en `sesiones`.
   Protección de rutas en `src/proxy.ts` (chequeo optimista de cookie → redirect a `/login`).
 - **Estilo:** identidad **navy + ámbar** sobre slate en `globals.css` con oklch (Tailwind v4,
-  CSS-first; no hay `tailwind.config`). Dark mode por `prefers-color-scheme`, no por clase.
+  CSS-first; no hay `tailwind.config`). Dark mode **class-based** (`@custom-variant dark (&:is(.dark *))`
+  + `:root`/`.dark`), NO `prefers-color-scheme`. Hoy no hay toggle de `.dark`, así que la app corre
+  siempre en **light**; las variantes `dark:` quedan listas para cuando se agregue el toggle.
 
 ---
 
@@ -232,7 +234,10 @@ Pendiente (ordenado por dependencia / valor):
   APIs que tocan la DB declaran `export const dynamic = 'force-dynamic'`.
 - **`middleware` → `proxy`**: el archivo es `src/proxy.ts`.
 - **Base UI `Button` como `Link`**: pasar `nativeButton={false}` al renderizar con `render={<Link/>}`.
-- **Dark mode** por `prefers-color-scheme`, no por clase `.dark`.
+- **Dark mode es class-based** (`.dark`), NO `prefers-color-scheme`. `globals.css` define `:root`
+  (light) y `.dark` (dark) + `@custom-variant dark (&:is(.dark *))`. Sin toggle hoy → la app está
+  en **light**: NO uses colores oscuros hardcodeados (`bg-[#0a1628]`, `text-slate-200`) que asuman
+  fondo oscuro; usá tokens (`bg-card`, `text-foreground`, `text-muted-foreground`) con variantes `dark:`.
 - **Las reglas en `.claude/rules/` mezclan ejemplos de Angular** — es React/Next: aplicar el
   *principio*, no la API de Angular.
 - **Metadata sólo en Server Components** — `/login` es Client Component.

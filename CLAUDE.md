@@ -53,8 +53,10 @@ npm run lint     # ESLint 9 flat config (core-web-vitals + typescript rules)
   `--font-mono`. PostCSS uses `@tailwindcss/postcss` (`postcss.config.mjs`).
 - **Path alias**: `@/*` maps to `./src/*` (`tsconfig.json`), so import as `@/lib/db`,
   `@/components/ui/button`, etc. — not long relative paths.
-- **Dark mode** is currently driven by `prefers-color-scheme` in `globals.css`, not a `dark:` class
-  toggle. Keep that in mind before adding `dark:` variants.
+- **Dark mode** is **class-based** (`@custom-variant dark (&:is(.dark *))` with `:root`/`.dark` in
+  `globals.css`), NOT `prefers-color-scheme`. There is no `.dark` toggle yet, so the app currently
+  renders in light mode. Use theme tokens (`bg-card`, `text-foreground`) with `dark:` variants; never
+  hardcode dark-only colors that assume a dark background.
 
 ## Rules caveat — some examples are Angular, not React
 
