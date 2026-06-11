@@ -2,26 +2,25 @@ import { query } from "@/lib/db";
 
 export interface Aeropuerto {
   codigo: string;
-  /** Derived from airport data or just the raw IATA code when no name exists */
   nombre: string;
+  ciudad: string;
 }
 
 /**
- * Return the distinct IATA airport codes that appear as origin or destination
- * in the vuelos table, sorted alphabetically.
- *
- * We derive the list from actual flight data so the selects only show airports
- * that have at least one flight — no separate airports table required.
+ * Return the airports that appear as origin or destination in the vuelos table,
+ * resolved against the real `aeropuertos` catalog so callers get the city and
+ * full airport name — not just the IATA code. Only airports with at least one
+ * flight are returned, so the selects stay short. Ordered by city.
  */
 export async function listarAeropuertos(): Promise<Aeropuerto[]> {
-  const rows = await query<{ codigo: string }>(
-    `SELECT codigo
-       FROM (
-         SELECT origen AS codigo FROM vuelos
-         UNION
-         SELECT destino AS codigo FROM vuelos
-       ) t
-      ORDER BY codigo ASC`,
+  return query<Aeropuerto>(
+    `SELECT ap.codigo, ap.nombre, ap.ciudad
+       FROM aeropuertos ap
+      WHERE ap.codigo IN (
+        SELECT origen FROM vuelos
+        UNION
+        SELECT destino FROM vuelos
+      )
+      ORDER BY ap.ciudad ASC, ap.codigo ASC`,
   );
-  return rows.map((r) => ({ codigo: r.codigo, nombre: r.codigo }));
 }

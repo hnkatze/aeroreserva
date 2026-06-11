@@ -6,21 +6,9 @@ import { SearchIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
+import { AeropuertoCombobox } from "@/components/vuelos/aeropuerto-combobox"
 import type { Aeropuerto } from "@/lib/aeropuertos"
-
-// Sentinel value used to represent "no selection" in the Select component.
-// An empty string triggers the placeholder but shadcn/radix Select requires a
-// non-empty string as the value for controlled mode; we use this constant and
-// translate it back to "" before building the URL.
-const NO_FILTER = "_all_"
 
 interface VuelosFiltrosProps {
   aeropuertos: Aeropuerto[]
@@ -36,15 +24,15 @@ export function VuelosFiltros({
   initialFecha = "",
 }: VuelosFiltrosProps) {
   const router = useRouter()
-  const [origen, setOrigen] = useState(initialOrigen || NO_FILTER)
-  const [destino, setDestino] = useState(initialDestino || NO_FILTER)
+  const [origen, setOrigen] = useState(initialOrigen)
+  const [destino, setDestino] = useState(initialDestino)
   const [fecha, setFecha] = useState(initialFecha)
 
   function handleBuscar(e: React.FormEvent) {
     e.preventDefault()
     const params = new URLSearchParams()
-    if (origen && origen !== NO_FILTER) params.set("origen", origen)
-    if (destino && destino !== NO_FILTER) params.set("destino", destino)
+    if (origen) params.set("origen", origen)
+    if (destino) params.set("destino", destino)
     if (fecha) params.set("fecha", fecha)
     params.set("page", "1")
     router.push(`/vuelos?${params.toString()}`)
@@ -59,43 +47,31 @@ export function VuelosFiltros({
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
             {/* Origen */}
-            <div className="flex flex-col gap-1.5 sm:w-52">
+            <div className="flex flex-col gap-1.5 sm:w-64">
               <Label htmlFor="filtro-origen" className="text-xs font-medium text-muted-foreground">
                 Origen
               </Label>
-              <Select value={origen} onValueChange={(v) => setOrigen(v ?? NO_FILTER)}>
-                <SelectTrigger id="filtro-origen" className="h-10 text-sm">
-                  <SelectValue placeholder="Todos los orígenes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_FILTER}>Todos los orígenes</SelectItem>
-                  {aeropuertos.map((a) => (
-                    <SelectItem key={a.codigo} value={a.codigo}>
-                      {a.codigo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AeropuertoCombobox
+                aeropuertos={aeropuertos}
+                value={origen}
+                onChange={setOrigen}
+                placeholder="Todos los orígenes"
+                id="filtro-origen"
+              />
             </div>
 
             {/* Destino */}
-            <div className="flex flex-col gap-1.5 sm:w-52">
+            <div className="flex flex-col gap-1.5 sm:w-64">
               <Label htmlFor="filtro-destino" className="text-xs font-medium text-muted-foreground">
                 Destino
               </Label>
-              <Select value={destino} onValueChange={(v) => setDestino(v ?? NO_FILTER)}>
-                <SelectTrigger id="filtro-destino" className="h-10 text-sm">
-                  <SelectValue placeholder="Todos los destinos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_FILTER}>Todos los destinos</SelectItem>
-                  {aeropuertos.map((a) => (
-                    <SelectItem key={a.codigo} value={a.codigo}>
-                      {a.codigo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AeropuertoCombobox
+                aeropuertos={aeropuertos}
+                value={destino}
+                onChange={setDestino}
+                placeholder="Todos los destinos"
+                id="filtro-destino"
+              />
             </div>
 
             {/* Fecha */}
