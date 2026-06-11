@@ -13,6 +13,7 @@ import {
   Shield,
   GitBranch,
   Network,
+  Activity,
   Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { label: "Auditoría", href: "/auditoria", icon: Shield },
   { label: "Lab. concurrencia", href: "/laboratorio", icon: GitBranch },
   { label: "Modelo de datos", href: "/esquema", icon: Network },
+  { label: "Salud DB", href: "/dba", icon: Activity },
 ] as const
 
 export function AppSidebar() {
