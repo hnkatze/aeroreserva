@@ -1,10 +1,42 @@
 import { NextResponse } from "next/server";
 import { getCurrentOperator } from "@/lib/auth";
-import { cancelarReserva } from "@/lib/reservas";
+import { cancelarReserva, obtenerReservaDetalle } from "@/lib/reservas";
+import { obtenerAuditoriaDeRegistro } from "@/lib/bitacora";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, ctx: RouteContext) {
+  const op = await getCurrentOperator();
+  if (!op) {
+    return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  }
+
+  const { id: idStr } = await ctx.params;
+  const id = parseInt(idStr, 10);
+  if (isNaN(id)) {
+    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  }
+
+  try {
+    const reserva = await obtenerReservaDetalle(id);
+    if (!reserva) {
+      return NextResponse.json(
+        { error: "Reserva no encontrada" },
+        { status: 404 },
+      );
+    }
+    const auditoria = await obtenerAuditoriaDeRegistro("reservas", String(id));
+    return NextResponse.json({ reserva, auditoria });
+  } catch (error) {
+    console.error("[GET /api/reservas/:id]", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500 },
+    );
+  }
+}
 
 export async function PATCH(request: Request, ctx: RouteContext) {
   const op = await getCurrentOperator();

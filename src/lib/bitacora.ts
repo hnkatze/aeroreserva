@@ -83,6 +83,37 @@ export async function listarBitacora(
 }
 
 // ---------------------------------------------------------------------------
+// obtenerAuditoriaDeRegistro
+// ---------------------------------------------------------------------------
+
+/**
+ * Return all audit log entries for a specific table row, ordered oldest→newest
+ * so the trail reads: creation → mutations → (optional) deletion.
+ */
+export async function obtenerAuditoriaDeRegistro(
+  tabla: string,
+  registroId: string,
+): Promise<RegistroBitacora[]> {
+  const rows = await query<BitacoraRow>(
+    `SELECT
+       id,
+       tabla,
+       operacion,
+       registro_id,
+       datos_anteriores,
+       datos_nuevos,
+       usuario_bd,
+       operador_id,
+       creado_en
+     FROM bitacora
+     WHERE tabla = $1 AND registro_id = $2
+     ORDER BY creado_en ASC`,
+    [tabla, registroId],
+  );
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
 // contarBitacora
 // ---------------------------------------------------------------------------
 

@@ -25,6 +25,7 @@ import {
   EstadoReservaBadge,
   type EstadoReserva,
 } from "@/components/reservas/estado-reserva-badge"
+import { ReservaDetalleDialog } from "@/components/reservas/reserva-detalle-dialog"
 import type { ReservaCompleta } from "@/lib/reservas"
 
 // ---------------------------------------------------------------------------
@@ -55,15 +56,12 @@ function formatFecha(date: Date | string): string {
 
 interface ReservaActionsMenuProps {
   reserva: ReservaCompleta
+  onVer: (id: number) => void
 }
 
-function ReservaActionsMenu({ reserva }: ReservaActionsMenuProps) {
+function ReservaActionsMenu({ reserva, onVer }: ReservaActionsMenuProps) {
   const router = useRouter()
   const [cancelando, setCancelando] = useState(false)
-
-  function handleVer() {
-    toast.info(`Ver reserva #${reserva.id} — ${reserva.vuelo_codigo}`)
-  }
 
   async function handleCancelar() {
     if (cancelando) return
@@ -101,7 +99,7 @@ function ReservaActionsMenu({ reserva }: ReservaActionsMenuProps) {
         <MoreHorizontalIcon className="h-4 w-4" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="bottom">
-        <DropdownMenuItem onClick={handleVer}>
+        <DropdownMenuItem onClick={() => onVer(reserva.id)}>
           <EyeIcon className="h-4 w-4" aria-hidden="true" />
           Ver detalle
         </DropdownMenuItem>
@@ -128,7 +126,21 @@ interface ReservasTableProps {
 }
 
 export function ReservasTable({ reservas }: ReservasTableProps) {
+  const [detalleId, setDetalleId] = useState<number | null>(null)
+  const [detalleOpen, setDetalleOpen] = useState(false)
+
+  function handleVer(id: number) {
+    setDetalleId(id)
+    setDetalleOpen(true)
+  }
+
   return (
+    <>
+    <ReservaDetalleDialog
+      reservaId={detalleId}
+      open={detalleOpen}
+      onOpenChange={setDetalleOpen}
+    />
     <div className="rounded-xl border bg-card">
       <Table aria-label="Listado de reservas">
         <TableHeader>
@@ -178,7 +190,7 @@ export function ReservasTable({ reservas }: ReservasTableProps) {
                   {formatFecha(reserva.fecha)}
                 </TableCell>
                 <TableCell className="pr-4 text-right">
-                  <ReservaActionsMenu reserva={reserva} />
+                  <ReservaActionsMenu reserva={reserva} onVer={handleVer} />
                 </TableCell>
               </TableRow>
             ))
@@ -186,5 +198,6 @@ export function ReservasTable({ reservas }: ReservasTableProps) {
         </TableBody>
       </Table>
     </div>
+    </>
   )
 }

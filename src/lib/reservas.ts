@@ -174,6 +174,62 @@ export async function crearReserva(
 }
 
 // ---------------------------------------------------------------------------
+// obtenerReservaDetalle
+// ---------------------------------------------------------------------------
+
+export interface ReservaDetalle {
+  id: number;
+  estado: string;
+  fecha: Date;
+  pasajero_nombre: string;
+  pasajero_documento: string;
+  vuelo_codigo: string;
+  vuelo_origen: string;
+  vuelo_destino: string;
+  vuelo_salida: Date;
+  vuelo_llegada: Date;
+  vuelo_estado: string;
+  asiento_numero: string;
+  asiento_clase: string;
+  operador_username: string | null;
+}
+
+/**
+ * Return the full detail for a single reservation, including flight and seat
+ * data plus the operator username (LEFT JOIN — may be null for unassigned).
+ * Returns null if no reservation with the given id exists.
+ */
+export async function obtenerReservaDetalle(
+  id: number,
+): Promise<ReservaDetalle | null> {
+  const rows = await query<ReservaDetalle>(
+    `SELECT
+       r.id,
+       r.estado,
+       r.creado_en              AS fecha,
+       p.nombre                 AS pasajero_nombre,
+       p.documento              AS pasajero_documento,
+       v.codigo                 AS vuelo_codigo,
+       v.origen                 AS vuelo_origen,
+       v.destino                AS vuelo_destino,
+       v.salida                 AS vuelo_salida,
+       v.llegada                AS vuelo_llegada,
+       v.estado                 AS vuelo_estado,
+       a.numero                 AS asiento_numero,
+       a.clase                  AS asiento_clase,
+       o.username               AS operador_username
+     FROM reservas r
+     JOIN pasajeros  p ON p.id = r.pasajero_id
+     JOIN vuelos     v ON v.id = r.vuelo_id
+     JOIN asientos   a ON a.id = r.asiento_id
+     LEFT JOIN operadores o ON o.id = r.operador_id
+    WHERE r.id = $1`,
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // listarReservas
 // ---------------------------------------------------------------------------
 
