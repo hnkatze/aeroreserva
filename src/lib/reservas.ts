@@ -1,5 +1,6 @@
 import { query, withTransaction } from "@/lib/db";
 import { upsertPasajero } from "@/lib/pasajeros";
+import type { PgRole } from "@/lib/auth";
 
 // ---------------------------------------------------------------------------
 // Domain error types
@@ -35,6 +36,8 @@ export interface CrearReservaInput {
   asientoId: number;
   pasajero: { documento: string; nombre: string };
   operadorId: number;
+  /** PostgreSQL NOLOGIN role to activate for this transaction (from migration 006). */
+  pgRole?: PgRole;
 }
 
 export interface ReservaCompleta {
@@ -84,6 +87,8 @@ export async function crearReserva(
     // capture who initiated this reservation.  set_config with is_local=true
     // scopes the variable to this transaction only (equivalent to SET LOCAL),
     // which is the safe form when using parameterized queries.
+    // NOTE: set_config works correctly under SET LOCAL ROLE — session GUCs
+    // are independent of the active role.
     await client.query(
       "SELECT set_config('app.current_operator', $1, true)",
       [String(input.operadorId)],
@@ -170,7 +175,7 @@ export async function crearReserva(
     const row = rows.rows[0];
     if (!row) throw new Error("Could not retrieve created reservation");
     return row;
-  });
+  }, { pgRole: input.pgRole });
 }
 
 // ---------------------------------------------------------------------------
@@ -293,9 +298,14 @@ export async function contarReservas(): Promise<number> {
 /**
  * Cancel a reservation and free the seat within the same transaction.
  * Returns the updated reservation, or null if it does not exist.
+ *
+ * @param pgRole - PostgreSQL NOLOGIN role to activate for this transaction.
+ *   Pass the result of operatorRoleToPgRole(op.role) so GRANT/REVOKE from
+ *   migration 006 are enforced.
  */
 export async function cancelarReserva(
   id: number,
+  pgRole?: PgRole,
 ): Promise<ReservaCompleta | null> {
   return withTransaction(async (client) => {
     // Fetch the reservation to get the asiento_id
@@ -341,5 +351,5 @@ export async function cancelarReserva(
     );
 
     return rows.rows[0] ?? null;
-  });
+  }, { pgRole });
 }

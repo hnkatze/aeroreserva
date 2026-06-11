@@ -54,6 +54,34 @@ export async function queryRaw<T extends QueryResultRow = QueryResultRow>(
 }
 
 /**
+ * Closed set of PostgreSQL NOLOGIN roles accepted by withTransaction.
+ * Must match the roles created in migration 006_roles.sql exactly.
+ * Keeping the whitelist here (not in auth.ts) lets db.ts validate without
+ * importing from auth.ts, preventing a circular dependency.
+ */
+const ALLOWED_PG_ROLES = new Set([
+  "app_consulta",
+  "app_agente",
+  "app_admin",
+] as const);
+
+export interface WithTransactionOpts {
+  /**
+   * PostgreSQL NOLOGIN role to activate for the duration of this transaction
+   * via SET LOCAL ROLE.  Must be one of the roles in migration 006_roles.sql.
+   * When provided, `SET LOCAL ROLE "<role>"` is issued right after BEGIN so
+   * that every subsequent statement in the transaction runs under that role's
+   * privilege set.  SET LOCAL automatically resets to the session role at
+   * COMMIT or ROLLBACK — no cleanup code required.
+   *
+   * Security note: the value is validated against ALLOWED_PG_ROLES (whitelist)
+   * before being interpolated into SQL.  Raw user input MUST NEVER flow here
+   * directly; always go through operatorRoleToPgRole() in auth.ts first.
+   */
+  pgRole?: string;
+}
+
+/**
  * Run a unit of work inside a single transaction. The callback receives a
  * dedicated client; the transaction commits if it resolves and rolls back if
  * it throws. This is the backbone of the project: reservations, mass
@@ -62,9 +90,16 @@ export async function queryRaw<T extends QueryResultRow = QueryResultRow>(
  *
  * All queries issued through the proxied client (including BEGIN/COMMIT/ROLLBACK)
  * are recorded in the query log under the same txId.
+ *
+ * When opts.pgRole is provided and whitelisted, `SET LOCAL ROLE "<role>"` is
+ * issued immediately after BEGIN so GRANT/REVOKE from migration 006 are
+ * enforced for the entire transaction.  The audit set_config call
+ * (app.current_operator) works normally under SET LOCAL ROLE — session
+ * variables are independent of the active role.
  */
 export async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>,
+  opts?: WithTransactionOpts,
 ): Promise<T> {
   const client = await getPool().connect();
   const txId = QUERY_LOG_ENABLED ? nextTxId() : null;
@@ -121,6 +156,28 @@ export async function withTransaction<T>(
 
   try {
     await proxiedClient.query("BEGIN");
+
+    // Activate the PostgreSQL NOLOGIN role for this transaction so that
+    // GRANT/REVOKE from migration 006_roles.sql are enforced.
+    // SET LOCAL resets automatically to the session role at COMMIT/ROLLBACK.
+    //
+    // Injection safety: opts.pgRole is validated against ALLOWED_PG_ROLES
+    // (a closed Set of known literals) before interpolation.  Identifiers are
+    // double-quoted per SQL standard so names with underscores are safe.
+    // The value never comes from raw user input — it must be routed through
+    // operatorRoleToPgRole() in auth.ts, which returns a narrowed union.
+    if (opts?.pgRole !== undefined) {
+      if (!ALLOWED_PG_ROLES.has(opts.pgRole as "app_consulta" | "app_agente" | "app_admin")) {
+        throw new Error(
+          `withTransaction: pgRole "${opts.pgRole}" is not in the allowed list.`,
+        );
+      }
+      // Double-quoting the role name follows the SQL identifier quoting standard.
+      // The value is already validated against the whitelist above; this is a
+      // defence-in-depth measure, not the primary injection guard.
+      await proxiedClient.query(`SET LOCAL ROLE "${opts.pgRole}"`);
+    }
+
     const result = await fn(proxiedClient as PoolClient);
     await proxiedClient.query("COMMIT");
     return result;

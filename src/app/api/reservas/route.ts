@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentOperator } from "@/lib/auth";
+import { getCurrentOperator, operatorRoleToPgRole } from "@/lib/auth";
 import {
   crearReserva,
   listarReservas,
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
       asientoId: asiento_id,
       pasajero: { nombre: nombre.trim(), documento: documento.trim() },
       operadorId: op.id,
+      pgRole: operatorRoleToPgRole(op.role),
     });
     return NextResponse.json({ reserva }, { status: 201 });
   } catch (error) {

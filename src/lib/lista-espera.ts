@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { query, withTransaction } from "@/lib/db";
 import { upsertPasajero } from "@/lib/pasajeros";
+import type { PgRole } from "@/lib/auth";
 
 // ---------------------------------------------------------------------------
 // Domain interface
@@ -44,12 +45,28 @@ export interface ListarListaEsperaOpts {
 export async function listarListaEspera(
   opts: ListarListaEsperaOpts = {},
 ): Promise<EntradaListaEspera[]> {
-  const estadoFilter = opts.incluirPromovidas
-    ? `le.estado IN ('esperando', 'promovida')`
-    : `le.estado = 'esperando'`;
-
   const limit = opts.limit ?? 25;
   const offset = opts.offset ?? 0;
+
+  if (opts.incluirPromovidas) {
+    return query<EntradaListaEspera>(
+      `SELECT
+         le.id,
+         le.posicion,
+         le.estado,
+         p.nombre    AS pasajero_nombre,
+         p.documento AS pasajero_documento,
+         v.codigo    AS vuelo_codigo,
+         le.creado_en
+       FROM lista_espera le
+       JOIN pasajeros p ON p.id = le.pasajero_id
+       JOIN vuelos    v ON v.id = le.vuelo_id
+      WHERE le.estado IN ('esperando', 'promovida')
+      ORDER BY v.codigo, le.posicion, le.id
+      LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+  }
 
   return query<EntradaListaEspera>(
     `SELECT
@@ -63,7 +80,7 @@ export async function listarListaEspera(
      FROM lista_espera le
      JOIN pasajeros p ON p.id = le.pasajero_id
      JOIN vuelos    v ON v.id = le.vuelo_id
-    WHERE ${estadoFilter}
+    WHERE le.estado = 'esperando'
     ORDER BY v.codigo, le.posicion, le.id
     LIMIT $1 OFFSET $2`,
     [limit, offset],
@@ -86,12 +103,10 @@ export interface ContarListaEsperaOpts {
 export async function contarListaEspera(
   opts: ContarListaEsperaOpts = {},
 ): Promise<number> {
-  const estadoFilter = opts.incluirPromovidas
-    ? `estado IN ('esperando', 'promovida')`
-    : `estado = 'esperando'`;
-
   const rows = await query<{ total: string }>(
-    `SELECT COUNT(*) AS total FROM lista_espera WHERE ${estadoFilter}`,
+    opts.incluirPromovidas
+      ? `SELECT COUNT(*) AS total FROM lista_espera WHERE estado IN ('esperando', 'promovida')`
+      : `SELECT COUNT(*) AS total FROM lista_espera WHERE estado = 'esperando'`,
   );
   return Number(rows[0]?.total ?? 0);
 }
@@ -108,6 +123,8 @@ export async function contarListaEspera(
 export interface EncolarEnEsperaInput {
   vueloId: number;
   pasajero: { nombre: string; documento: string };
+  /** PostgreSQL NOLOGIN role to activate for this transaction (from migration 006). */
+  pgRole?: PgRole;
 }
 
 /**
@@ -132,21 +149,30 @@ export async function encolarEnEspera(
     // Step 1: upsert passenger (reuse the shared helper from lib/pasajeros)
     const { id: pasajeroId } = await upsertPasajero(client, input.pasajero);
 
-    // Step 2 + 3: calculate posicion and insert atomically.
-    // COALESCE(MAX, 0) + 1 gives posicion = 1 when the flight has no waitlist.
-    const insertResult = await client.query<{ id: number; posicion: number }>(
-      `INSERT INTO lista_espera (vuelo_id, pasajero_id, posicion)
-       SELECT $1, $2, COALESCE(MAX(posicion), 0) + 1
-         FROM lista_espera
-        WHERE vuelo_id = $1
-       RETURNING id, posicion`,
+    // Step 2 + 3: enqueue via the SECURITY DEFINER function encolar_espera()
+    // defined in migration 008_lista_espera.sql.
+    //
+    // Why use the function instead of a direct INSERT?
+    // Migration 006 grants app_agente only SELECT on lista_espera (not INSERT).
+    // The SECURITY DEFINER function runs as its owner (postgres) regardless of
+    // the calling role, so app_agente can enqueue without needing INSERT on
+    // the table directly.  app_admin has ALL privileges so it works either way.
+    //
+    // The function also enforces the same COALESCE(MAX(posicion),0)+1 logic and
+    // the uq_lista_espera_vuelo_pasajero unique constraint, so callers still
+    // receive 23505 on duplicate enqueue.
+    const fnResult = await client.query<{ encolar_espera: number }>(
+      `SELECT encolar_espera($1, $2) AS encolar_espera`,
       [input.vueloId, pasajeroId],
     );
 
-    const inserted = insertResult.rows[0];
-    if (!inserted) throw new Error("encolarEnEspera: INSERT returned no row");
+    const insertedId = fnResult.rows[0]?.encolar_espera;
+    if (insertedId === undefined || insertedId === null) {
+      throw new Error("encolarEnEspera: encolar_espera() returned no id");
+    }
 
     // Step 4: return the full denormalised row for the UI
+    // app_agente has SELECT on lista_espera so this read works under that role.
     const rows = await client.query<EntradaListaEspera>(
       `SELECT
          le.id,
@@ -160,11 +186,11 @@ export async function encolarEnEspera(
        JOIN pasajeros p ON p.id = le.pasajero_id
        JOIN vuelos    v ON v.id = le.vuelo_id
       WHERE le.id = $1`,
-      [inserted.id],
+      [insertedId],
     );
 
     const row = rows.rows[0];
     if (!row) throw new Error("encolarEnEspera: could not retrieve inserted row");
     return row;
-  });
+  }, { pgRole: input.pgRole });
 }

@@ -3,10 +3,34 @@ import { query } from "@/lib/db";
 
 export type OperatorRole = "agente" | "admin" | "consulta";
 
+export type PgRole = "app_agente" | "app_admin" | "app_consulta";
+
 export interface SessionOperator {
   id: number;
   username: string;
   role: OperatorRole;
+}
+
+/**
+ * Whitelist mapping from application operator roles to PostgreSQL NOLOGIN
+ * roles defined in migration 006_roles.sql.
+ *
+ * The result is a closed union — the pg role MUST come from this map and
+ * never from raw user input.  This is the sole injection-safe point for
+ * anything that ends up in SET LOCAL ROLE.
+ */
+const PG_ROLE_MAP = {
+  agente: "app_agente",
+  admin: "app_admin",
+  consulta: "app_consulta",
+} as const satisfies Record<OperatorRole, PgRole>;
+
+/**
+ * Return the PostgreSQL NOLOGIN role for the given application operator role.
+ * Only the three values from migration 006 are accepted.
+ */
+export function operatorRoleToPgRole(role: OperatorRole): PgRole {
+  return PG_ROLE_MAP[role];
 }
 
 const COOKIE_NAME = "session";

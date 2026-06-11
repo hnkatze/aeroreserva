@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentOperator } from "@/lib/auth";
+import { getCurrentOperator, operatorRoleToPgRole } from "@/lib/auth";
 import { encolarEnEspera } from "@/lib/lista-espera";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +76,7 @@ export async function POST(request: Request) {
     const entrada = await encolarEnEspera({
       vueloId: vuelo_id,
       pasajero: { nombre: nombre.trim(), documento: documento.trim() },
+      pgRole: operatorRoleToPgRole(op.role),
     });
     return NextResponse.json({ entrada }, { status: 201 });
   } catch (error) {

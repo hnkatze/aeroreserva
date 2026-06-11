@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentOperator } from "@/lib/auth";
+import { getCurrentOperator, operatorRoleToPgRole } from "@/lib/auth";
 import { cancelarReserva, obtenerReservaDetalle } from "@/lib/reservas";
 import { obtenerAuditoriaDeRegistro } from "@/lib/bitacora";
 
@@ -68,7 +68,7 @@ export async function PATCH(request: Request, ctx: RouteContext) {
   }
 
   try {
-    const reserva = await cancelarReserva(id);
+    const reserva = await cancelarReserva(id, operatorRoleToPgRole(op.role));
     if (!reserva) {
       return NextResponse.json(
         { error: "Reserva no encontrada" },
