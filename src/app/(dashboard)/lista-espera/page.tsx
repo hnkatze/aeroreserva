@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { InfoIcon } from "lucide-react"
 
 import { ListaEsperaTable } from "@/components/lista-espera/lista-espera-table"
+import { EncolarEsperaDialog } from "@/components/lista-espera/encolar-espera-dialog"
 import { listarListaEspera, contarListaEspera } from "@/lib/lista-espera"
 
 export const metadata: Metadata = {
@@ -39,14 +40,17 @@ export default async function ListaEsperaPage({ searchParams }: ListaEsperaPageP
   return (
     <div className="flex flex-col gap-8">
       {/* ── Encabezado ──────────────────────────────────────────────── */}
-      <header>
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Lista de espera
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pasajeros en espera de un asiento. La promoción es automática al
-          liberarse uno.
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Lista de espera
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Pasajeros en espera de un asiento. La promoción es automática al
+            liberarse uno.
+          </p>
+        </div>
+        <EncolarEsperaDialog />
       </header>
 
       {/* ── Nota informativa ────────────────────────────────────────── */}

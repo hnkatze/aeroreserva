@@ -5,6 +5,7 @@ export type SeatStatus = "libre" | "ocupado" | "seleccionado"
 
 export interface Seat {
   id: string         // e.g. "3A"
+  dbId: number       // DB primary key — needed for reservations (asiento_id)
   row: number        // 1–N
   col: string        // A–F
   clase: SeatClass
@@ -65,7 +66,7 @@ export function buildSeatsFromData(inputs: SeatInput[]): Seat[] {
     const status: SeatStatus =
       input.estado === "libre" ? "libre" : "ocupado"
 
-    seats.push({ id: input.numero, row, col, clase, status })
+    seats.push({ id: input.numero, dbId: input.id, row, col, clase, status })
   }
   return seats
 }

@@ -5,6 +5,7 @@ import { PlaneIcon } from "lucide-react"
 import { SeatButton } from "./seat-button"
 import { SeatLegend } from "./seat-legend"
 import { SeatDetailPanel } from "./seat-detail-panel"
+import { ReservarAsientoDialog } from "./reservar-asiento-dialog"
 import {
   COLUMNS,
   type Seat,
@@ -18,6 +19,8 @@ const LEFT_COLS = ["A", "B", "C"] as const
 const RIGHT_COLS = ["D", "E", "F"] as const
 
 interface SeatMapProps {
+  /** DB primary key of the flight — required to create a reservation */
+  vueloId: number
   flightLabel?: string
   /**
    * Seat data from the database. When provided the map renders real occupancy
@@ -26,8 +29,9 @@ interface SeatMapProps {
   seats?: SeatInput[]
 }
 
-export function SeatMap({ flightLabel, seats: seatsProp }: SeatMapProps) {
+export function SeatMap({ vueloId, flightLabel, seats: seatsProp }: SeatMapProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   const seats = useMemo(() => buildSeatsFromData(seatsProp ?? []), [seatsProp])
 
@@ -229,10 +233,28 @@ export function SeatMap({ flightLabel, seats: seatsProp }: SeatMapProps) {
             seat={selectedSeat}
             stats={stats}
             flightLabel={flightLabel}
-            onReservar={() => {}}
+            onReservar={() => {
+              if (selectedSeat?.status === "libre") setDialogOpen(true)
+            }}
           />
         </aside>
       </div>
+
+      {/* ── Reservation dialog ──────────────────────────────────────────────── */}
+      <ReservarAsientoDialog
+        vueloId={vueloId}
+        asiento={
+          selectedSeat
+            ? {
+                dbId: selectedSeat.dbId,
+                numero: selectedSeat.id,
+                clase: selectedSeat.clase,
+              }
+            : null
+        }
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   )
 }

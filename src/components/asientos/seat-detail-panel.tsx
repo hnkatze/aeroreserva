@@ -156,15 +156,20 @@ export function SeatDetailPanel({
         <button
           type="button"
           onClick={() => onReservar(seat.id)}
+          disabled={seat.status !== "libre"}
+          aria-disabled={seat.status !== "libre"}
           className={cn(
             "flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5",
             "bg-primary text-sm font-semibold text-primary-foreground",
             "transition-colors hover:bg-primary/90",
-            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none",
+            "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
           <CheckIcon className="h-4 w-4" aria-hidden="true" />
-          Reservar asiento {seat.id}
+          {seat.status === "libre"
+            ? `Reservar asiento ${seat.id}`
+            : `Asiento ${seat.id} ocupado`}
         </button>
       </CardFooter>
     </Card>

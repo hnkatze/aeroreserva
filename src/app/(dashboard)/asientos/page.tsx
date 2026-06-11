@@ -151,7 +151,7 @@ export default async function AsientosPage({ searchParams }: AsientosPageProps) 
 
       {/* ── Interactive seat map (client component) ──────────────── */}
       <section aria-label="Mapa de asientos interactivo">
-        <SeatMap flightLabel={flightLabel} seats={asientos} />
+        <SeatMap vueloId={vuelo.id} flightLabel={flightLabel} seats={asientos} />
       </section>
     </div>
   )

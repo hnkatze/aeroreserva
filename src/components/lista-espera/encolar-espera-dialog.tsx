@@ -16,28 +16,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { VueloCombobox, type VueloOption } from "@/components/reservas/vuelo-combobox"
 import {
   PasajeroCombobox,
   type PasajeroSeleccion,
 } from "@/components/pasajeros/pasajero-combobox"
-
-// ---------------------------------------------------------------------------
-// API response DTOs — mirrors exactly what the route handlers return
-// ---------------------------------------------------------------------------
-
-interface AsientoDto {
-  id: number
-  numero: string
-  clase: string
-}
 
 // ---------------------------------------------------------------------------
 // Form state
@@ -46,20 +29,18 @@ interface AsientoDto {
 interface FormState {
   vueloId: string
   pasajero: PasajeroSeleccion | null
-  asientoId: string
 }
 
 const EMPTY_FORM: FormState = {
   vueloId: "",
   pasajero: null,
-  asientoId: "",
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function NuevaReservaDialog() {
+export function EncolarEsperaDialog() {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
@@ -67,17 +48,13 @@ export function NuevaReservaDialog() {
   const [fieldErrors, setFieldErrors] = React.useState<
     Partial<Record<keyof FormState, string>>
   >({})
-  const [raceError, setRaceError] = React.useState<string | null>(null)
-
-  const [asientos, setAsientos] = React.useState<AsientoDto[]>([])
-  const [loadingAsientos, setLoadingAsientos] = React.useState(false)
+  const [duplicateError, setDuplicateError] = React.useState<string | null>(null)
 
   // ── Reset all state when the dialog closes ──────────────────────────────
   function resetForm() {
     setForm(EMPTY_FORM)
     setFieldErrors({})
-    setRaceError(null)
-    setAsientos([])
+    setDuplicateError(null)
   }
 
   function handleOpenChange(next: boolean) {
@@ -85,32 +62,10 @@ export function NuevaReservaDialog() {
     if (!next) resetForm()
   }
 
-  // ── Fetch asientos when a vuelo is selected ──────────────────────────────
-  async function fetchAsientosLibres(vueloId: string) {
-    setAsientos([])
-    setForm((f) => ({ ...f, asientoId: "" }))
-    setLoadingAsientos(true)
-    try {
-      const res = await fetch(
-        `/api/vuelos/${vueloId}/asientos?soloLibres=true`,
-      )
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data: { asientos: AsientoDto[] } = await res.json()
-      setAsientos(data.asientos)
-    } catch {
-      // Non-blocking — the asiento select will just be empty
-      setAsientos([])
-    } finally {
-      setLoadingAsientos(false)
-    }
-  }
-
   function handleVueloSelect(vuelo: VueloOption | null) {
     const vueloId = vuelo ? String(vuelo.id) : ""
-    setForm((f) => ({ ...f, vueloId, asientoId: "" }))
-    setRaceError(null)
-    if (vuelo) void fetchAsientosLibres(vueloId)
-    else setAsientos([])
+    setForm((f) => ({ ...f, vueloId }))
+    setDuplicateError(null)
   }
 
   // ── Validation ───────────────────────────────────────────────────────────
@@ -118,7 +73,6 @@ export function NuevaReservaDialog() {
     const errors: Partial<Record<keyof FormState, string>> = {}
     if (!form.vueloId) errors.vueloId = "Seleccioná un vuelo"
     if (!form.pasajero) errors.pasajero = "Seleccioná o creá un pasajero"
-    if (!form.asientoId) errors.asientoId = "Seleccioná un asiento"
     setFieldErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -128,15 +82,14 @@ export function NuevaReservaDialog() {
     e.preventDefault()
     if (!validate()) return
 
-    setRaceError(null)
+    setDuplicateError(null)
     setSaving(true)
     try {
-      const res = await fetch("/api/reservas", {
+      const res = await fetch("/api/lista-espera", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vuelo_id: Number(form.vueloId),
-          asiento_id: Number(form.asientoId),
           pasajero: {
             nombre: form.pasajero!.nombre,
             documento: form.pasajero!.documento,
@@ -147,25 +100,23 @@ export function NuevaReservaDialog() {
       if (res.status === 201) {
         router.refresh()
         handleOpenChange(false)
-        toast.success("Reserva creada exitosamente")
+        toast.success("Pasajero agregado a la lista de espera")
         return
       }
 
-      // 409 — race condition: seat was taken while filling the form
+      // 409 — passenger is already on the waitlist for this flight
       if (res.status === 409) {
-        const body: { code?: string } = await res.json()
-        if (body.code === "ASIENTO_OCUPADO") {
-          setRaceError(
-            "El asiento fue reservado mientras completabas el formulario. Elegí otro.",
+        const body: { code?: string; error?: string } = await res.json()
+        if (body.code === "YA_EN_ESPERA") {
+          setDuplicateError(
+            "Este pasajero ya está en la lista de espera para este vuelo.",
           )
-          // Re-fetch available seats for the same flight (do NOT close)
-          void fetchAsientosLibres(form.vueloId)
           return
         }
       }
 
       // Other errors
-      let errorMsg = "No se pudo crear la reserva. Intentá nuevamente."
+      let errorMsg = "No se pudo agregar el pasajero. Intentá nuevamente."
       try {
         const body: { error?: string } = await res.json()
         if (body.error) errorMsg = body.error
@@ -190,39 +141,39 @@ export function NuevaReservaDialog() {
         }
       >
         <PlusIcon className="h-4 w-4" aria-hidden="true" />
-        Nueva reserva
+        Encolar pasajero
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nueva reserva</DialogTitle>
+          <DialogTitle>Encolar pasajero en lista de espera</DialogTitle>
         </DialogHeader>
 
-        {/* Race condition error — persists until user picks another seat */}
-        {raceError && (
+        {/* Duplicate error — persists until user changes flight or document */}
+        {duplicateError && (
           <p
             role="alert"
             className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
           >
-            {raceError}
+            {duplicateError}
           </p>
         )}
 
-        <form id="reserva-form" onSubmit={handleSubmit} noValidate>
+        <form id="espera-form" onSubmit={handleSubmit} noValidate>
           <div className="flex flex-col gap-5 py-2">
             {/* Vuelo — combobox con búsqueda server-side */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="rsv-vuelo">Vuelo</Label>
+              <Label htmlFor="esp-vuelo">Vuelo</Label>
               <VueloCombobox
                 value={form.vueloId}
                 onSelect={handleVueloSelect}
                 disabled={isFormDisabled}
-                describedBy={fieldErrors.vueloId ? "rsv-vuelo-error" : undefined}
+                describedBy={fieldErrors.vueloId ? "esp-vuelo-error" : undefined}
                 invalid={!!fieldErrors.vueloId}
               />
               {fieldErrors.vueloId && (
                 <span
-                  id="rsv-vuelo-error"
+                  id="esp-vuelo-error"
                   role="alert"
                   className="text-xs text-destructive"
                 >
@@ -233,74 +184,24 @@ export function NuevaReservaDialog() {
 
             {/* Pasajero — combobox con búsqueda + creación inline */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="rsv-pasajero">Pasajero</Label>
+              <Label htmlFor="esp-pasajero">Pasajero</Label>
               <PasajeroCombobox
                 value={form.pasajero}
-                onSelect={(p) => setForm((f) => ({ ...f, pasajero: p }))}
+                onSelect={(p) => {
+                  setForm((f) => ({ ...f, pasajero: p }))
+                  setDuplicateError(null)
+                }}
                 disabled={isFormDisabled}
-                describedBy={fieldErrors.pasajero ? "rsv-pasajero-error" : undefined}
+                describedBy={fieldErrors.pasajero ? "esp-pasajero-error" : undefined}
                 invalid={!!fieldErrors.pasajero}
               />
               {fieldErrors.pasajero && (
                 <span
-                  id="rsv-pasajero-error"
+                  id="esp-pasajero-error"
                   role="alert"
                   className="text-xs text-destructive"
                 >
                   {fieldErrors.pasajero}
-                </span>
-              )}
-            </div>
-
-            {/* Asiento */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="rsv-asiento">Asiento</Label>
-              <Select
-                value={form.asientoId}
-                onValueChange={(value: string | null) =>
-                  setForm((f) => ({ ...f, asientoId: value ?? "" }))
-                }
-                disabled={isFormDisabled || !form.vueloId || loadingAsientos}
-              >
-                <SelectTrigger
-                  id="rsv-asiento"
-                  className="h-10 w-full font-mono"
-                  aria-describedby={
-                    fieldErrors.asientoId ? "rsv-asiento-error" : undefined
-                  }
-                  aria-invalid={fieldErrors.asientoId ? true : undefined}
-                >
-                  <SelectValue
-                    placeholder={
-                      !form.vueloId
-                        ? "Primero seleccioná un vuelo"
-                        : loadingAsientos
-                          ? "Cargando asientos…"
-                          : asientos.length === 0
-                            ? "Sin asientos disponibles"
-                            : "Seleccioná un asiento"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {asientos.map((a) => (
-                    <SelectItem
-                      key={a.id}
-                      value={String(a.id)}
-                      className="py-2.5 font-mono"
-                    >
-                      {`${a.numero} — ${a.clase}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fieldErrors.asientoId && (
-                <span
-                  id="rsv-asiento-error"
-                  role="alert"
-                  className="text-xs text-destructive"
-                >
-                  {fieldErrors.asientoId}
                 </span>
               )}
             </div>
@@ -313,11 +214,11 @@ export function NuevaReservaDialog() {
           </DialogClose>
           <Button
             type="submit"
-            form="reserva-form"
+            form="espera-form"
             disabled={isFormDisabled}
             className="min-w-28"
           >
-            {saving ? "Creando…" : "Crear reserva"}
+            {saving ? "Guardando…" : "Encolar pasajero"}
           </Button>
         </DialogFooter>
       </DialogContent>
