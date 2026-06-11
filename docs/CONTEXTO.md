@@ -5,7 +5,7 @@
 > obvios** del stack.
 > Para la visión, el stack y el modelo de datos completo, ver [`README.md`](../README.md).
 
-Última actualización: 2026-06-10
+Última actualización: 2026-06-11
 
 ---
 
@@ -26,32 +26,40 @@ src/
 ├── app/
 │   ├── (auth)/login/          # Login de operadores (Client Component)
 │   ├── (dashboard)/           # Shell autenticado (sidebar + header)
-│   │   ├── page.tsx           # Home: KPIs + próximos vuelos   (mock)
-│   │   ├── vuelos/            # Tabla de vuelos REAL + paginación
-│   │   ├── asientos/          # Mapa de asientos (mock visual)
-│   │   ├── reservas/          # Tabla + diálogo "nueva reserva" REAL
-│   │   ├── reportes/          # Ocupación (mock)
-│   │   ├── lista-espera/      # Cola de espera (mock)
-│   │   ├── auditoria/         # Bitácora (mock)
-│   │   ├── laboratorio/       # Demo visual de concurrencia (mock)
+│   │   ├── page.tsx           # Home: KPIs + próximos vuelos REAL
+│   │   ├── vuelos/            # Tabla REAL + filtros autocomplete (ciudad/código)
+│   │   ├── asientos/          # Mapa de asientos REAL + reservar desde el mapa
+│   │   ├── reservas/          # Tabla + nueva reserva + ver detalle con auditoría
+│   │   ├── reportes/          # Ocupación REAL (vistas SQL)
+│   │   ├── lista-espera/      # Cola REAL + encolar pasajero, agrupada por vuelo
+│   │   ├── auditoria/         # Bitácora REAL
+│   │   ├── laboratorio/       # Demo visual de concurrencia (simulación)
+│   │   ├── esquema/           # Diagrama ER interactivo (React Flow)
 │   │   └── usuarios/          # CRUD de operadores REAL
 │   └── api/
 │       ├── health/            # GET  — chequeo de conexión a DB
 │       ├── operadores/        # GET/POST + [id] PATCH/DELETE
 │       ├── vuelos/            # GET  + [id]/asientos GET (?soloLibres)
-│       └── reservas/          # POST/GET + [id] PATCH (cancelar)
+│       ├── pasajeros/         # GET  — búsqueda por documento/nombre (autocomplete)
+│       ├── lista-espera/      # POST — encolar pasajero (409 si ya está en el vuelo)
+│       ├── reservas/          # POST/GET + [id] GET (detalle+auditoría) / PATCH (cancelar)
+│       └── query-log/         # GET (snapshot) + explain POST — devtool dev-only
 ├── components/
 │   ├── ui/                    # Primitivos shadcn / Base UI (NO tocar al auditar)
 │   └── <feature>/             # Componentes por vista
 ├── lib/
-│   ├── db.ts                  # Pool de pg + query() / withTransaction()
+│   ├── db.ts                  # Pool de pg + query() / withTransaction() (instrumentada → query-log)
+│   ├── query-log.ts           # Ring buffer en memoria del SQL transaccional (dev-only)
 │   ├── auth.ts                # getCurrentOperator(), roles, sesiones
 │   ├── password.ts            # scrypt  "saltHex:derivedKeyHex"
 │   ├── operadores.ts          # CRUD de operadores
-│   ├── vuelos.ts              # listarVuelos({limit,offset}) + contarVuelos() (JOIN aerolineas)
+│   ├── vuelos.ts              # listarVuelos/buscarVueloPorCodigo (JOIN aerolineas + aeropuertos → ciudad/nombre)
+│   ├── aeropuertos.ts         # listarAeropuertos() — catálogo real (codigo/nombre/ciudad) de aeropuertos con vuelos
 │   ├── asientos.ts            # listarAsientosDeVuelo(vueloId, {soloLibres})
-│   ├── pasajeros.ts           # upsertPasajero(client, ...) — recibe PoolClient
-│   └── reservas.ts            # crearReserva / listarReservas / cancelarReserva
+│   ├── pasajeros.ts           # upsertPasajero(client) + buscarPasajeros(q) (autocomplete)
+│   ├── reservas.ts            # crearReserva / listar / cancelar / obtenerReservaDetalle
+│   ├── lista-espera.ts        # listar + encolarEnEspera (atómico, posición por vuelo)
+│   └── bitacora.ts            # listarBitacora + obtenerAuditoriaDeRegistro(tabla, id)
 └── proxy.ts                   # Protección de rutas (Next 16: antes "middleware")
 ```
 
@@ -86,17 +94,19 @@ src/
 | Login / sesiones / roles | ✅ **Real (DB)** | Tablas, scrypt, login, `proxy.ts` protege el dashboard. |
 | `/api/health` | ✅ **Real (DB)** | Verifica conexión al pool. |
 | CRUD **usuarios/operadores** | ✅ **Real (DB)** | `src/lib/operadores.ts` + routes + UI. |
-| **Vuelos** (tabla + filtros) | ✅ **Real (DB)** | `listarVuelos` paginado (25/pág) + `JOIN aerolineas` + filtros origen/destino/fecha por querystring. |
+| **Vuelos** (tabla + filtros) | ✅ **Real (DB)** | `listarVuelos` paginado (25/pág) + `JOIN aerolineas` + `JOIN aeropuertos` (muestra **ciudad + nombre**, no solo el código IATA). Filtros origen/destino son **autocompletes buscables** (`AeropuertoCombobox`); fecha por querystring. |
 | **Aerolíneas** | ✅ **Real (DB)** | Tabla `aerolineas` + FK; nombres reales de OpenFlights. |
-| **Reservas** (crear/listar/cancelar) | ✅ **Real (DB)** | `crearReserva` transaccional (`FOR UPDATE` + UNIQUE parcial), diálogo conectado, cancelar (soft) cableado. Verificado end-to-end en navegador. |
+| **Reservas** (crear/listar/cancelar) | ✅ **Real (DB)** | `crearReserva` transaccional (`FOR UPDATE` + UNIQUE parcial), diálogo conectado, cancelar (soft) cableado. Verificado end-to-end en navegador. El selector de pasajero es un combobox (buscar existente / crear nuevo). |
+| **Reservas** (ver detalle + auditoría) | ✅ **Real (DB)** | `GET /api/reservas/[id]` → datos completos (pasajero, ruta, asiento, operador) **+ traza de auditoría** leída de `bitacora` con diff JSONB (`estado: confirmada → cancelada`). |
 | **Asientos** (consulta) | ✅ **Real (DB)** | Vía `GET /api/vuelos/[id]/asientos?soloLibres` (lo usa el diálogo de reserva). |
-| **Asientos** (mapa `/asientos`) | ✅ **Real (DB)** | El mapa se alimenta de los asientos reales del vuelo (`?vuelo=CODIGO`). |
+| **Asientos** (mapa `/asientos`) | ✅ **Real (DB)** | Mapa con ocupación real del vuelo (`?vuelo=CODIGO`) y **reserva desde el mapa**: seleccionar asiento libre → diálogo → POST. Tras reservar se deselecciona y el tile pasa a ocupado. |
 | **Home / Dashboard** | ✅ **Real (DB)** | KPIs reales (ocupación promedio sobre vuelos con reservas) + próximos vuelos con estado/ocupación (`src/lib/dashboard.ts`). |
 | **Reportes** (ocupación) | ✅ **Real (DB)** | Vistas SQL de ocupación por vuelo/aerolínea + KPIs. |
-| **Lista de espera** | ✅ **Real (DB)** | Tabla `lista_espera` + trigger PL/pgSQL que promueve automáticamente al cancelarse una reserva. |
+| **Lista de espera** | ✅ **Real (DB)** | Tabla `lista_espera` + **encolar desde la UI** (`POST /api/lista-espera`, 409 si el pasajero ya está en el vuelo) + trigger PL/pgSQL que promueve automáticamente al cancelarse una reserva. La tabla se **agrupa por vuelo** (la posición es por vuelo, no global). |
 | **Auditoría** (bitácora) | ✅ **Real (DB)** | Triggers AFTER INSERT/UPDATE/DELETE en reservas/asientos/pasajeros → `bitacora` (JSONB old/new + operador vía `app.current_operator`). `/auditoria` conectada. |
 | **Roles/permisos DB** | ✅ **Real (motor)** | 3 roles Postgres con GRANT/REVOKE por tabla (`db/demo-roles.mjs` lo demuestra). La app aún se conecta como `postgres`. |
 | **Modelo de datos (ER)** | ✅ **Real (DB)** | `/esquema`: diagrama ER interactivo (React Flow) generado leyendo `information_schema` — 10 tablas, 11 FKs. |
+| **Query Log** (inspector SQL) | ✅ **Real (dev-only)** | Drawer flotante que muestra el SQL de **transacciones** (`BEGIN → FOR UPDATE → INSERT → UPDATE → COMMIT`) agrupado, con **EXPLAIN** por consulta + lectura del plan en español. Captura instrumentando `withTransaction`; snapshot bajo demanda. Solo se compila en desarrollo. |
 | Laboratorio de concurrencia | 🟡 **Simulación** | Anima escenarios **sin** ejecutar SQL real. |
 
 ---
@@ -173,7 +183,11 @@ aerolíneas relacionadas · paginación e índices · **roles y permisos (GRANT/
 **auditoría con triggers** · **lista de espera con promoción automática (PL/pgSQL)** ·
 **reportes con vistas SQL** (ocupación, rutas, retrasos, aeropuertos) · filtros de vuelos +
 mapa de asientos reales · **dashboard con datos reales** · **paginación en todos los listados** ·
-ruido de demo (~43% ocupación).
+ruido de demo (~43% ocupación) · **reservar desde el mapa de asientos** · **encolar en lista de
+espera desde la UI** · **detalle de reserva con traza de auditoría** (diff JSONB) · **Query Log /
+inspector SQL** con EXPLAIN + lectura del plan en español · **nombres de aeropuertos** (ciudad +
+nombre) en tabla, detalle y comboboxes · **filtros de aeropuerto como autocomplete buscable** ·
+**selector de pasajero** (buscar existente / crear nuevo) en todos los diálogos de reserva/espera.
 
 Pendiente (ordenado por dependencia / valor):
 1. **Laboratorio ejecutable** (diferencial) — correr los escenarios de aislamiento/deadlock
@@ -182,7 +196,10 @@ Pendiente (ordenado por dependencia / valor):
    más rutas aparecerían más aerolíneas.
 3. **Pendientes menores**: `cancelarReserva` no registra operador en bitácora (queda NULL); el
    dropdown de filtros de `/auditoria` lista tablas mock. La app podría usar `SET ROLE` por
-   operador para que los permisos apliquen de verdad (defense-in-depth).
+   operador para que los permisos apliquen de verdad (defense-in-depth). El **detalle de reserva**
+   muestra la ruta solo con el código del vuelo (falta extenderle ciudades como en `/vuelos`).
+   Falta **validar end-to-end en navegador** el lote nuevo (reservar desde mapa, query log,
+   detalle con auditoría, filtros autocomplete).
 
 ---
 
@@ -236,6 +253,33 @@ Pendiente (ordenado por dependencia / valor):
   redondea a 0. La ocupación real y variada se ve **por vuelo / por aerolínea** (vistas), no en
   el agregado global. Si la demo necesita un % global vistoso, reducir el catálogo o calcular el
   KPI solo sobre vuelos con reservas.
+- **Dropdown en portal (overflow-hidden).** El `AeropuertoCombobox` (filtros de `/vuelos`) se
+  recortaba porque la `Card` (`ui/card.tsx`) tiene `overflow-hidden`. Solución: renderizar el
+  dropdown con `createPortal(document.body)` + posición `fixed` calculada con `getBoundingClientRect`,
+  reposicionando en scroll/resize, y el click-afuera verifica trigger **y** dropdown. Mismo patrón
+  a aplicar si el `vuelo-combobox` se recorta en algún contenedor.
+- **Query Log captura SOLO transacciones.** `query()` standalone NO se registra (eran los SELECT
+  de cada pantalla → ruido); solo el proxy de `withTransaction` graba (con `txId`). Es **dev-only**
+  (`QUERY_LOG_ENABLED = NODE_ENV !== 'production'`) y **sin streaming**: snapshot por `GET /api/query-log`
+  + botón Actualizar. `queryRaw()` en `db.ts` ejecuta sin registrar (lo usa el endpoint EXPLAIN para
+  no contaminar el log).
+- **EXPLAIN no se traduce.** Los nombres de nodos del plan (`Seq Scan`, `Index Scan`…) son fijos en
+  inglés en PostgreSQL (`lc_messages` solo traduce errores). Por eso el query log muestra el plan
+  crudo **+ una capa de interpretación en español** (`plan-interpreter.tsx`). El EXPLAIN ANALYZE solo
+  se usa en `SELECT`; en escrituras se usa `EXPLAIN` sin `ANALYZE` para no ejecutar el INSERT/UPDATE.
+- **Posición de lista de espera es POR VUELO.** `encolarEnEspera` calcula `MAX(posicion)+1 WHERE vuelo_id`,
+  así que varios "1" (uno por vuelo) son correctos. La tabla `/lista-espera` se **agrupa por vuelo**
+  para que se entienda; no es un bug de datos.
+- **Tile de asiento: "seleccionado" gana sobre "ocupado".** En `seat-button.tsx` el estilo de
+  seleccionado tiene prioridad sobre el status. Tras reservar desde el mapa hay que **deseleccionar**
+  (el diálogo llama `onReserved` → `setSelectedId(null)`); con `router.refresh()` el tile pinta su
+  estado ocupado real.
+- **`listarAeropuertos` lee la tabla real.** Antes armaba la lista con un UNION de códigos de `vuelos`
+  y ponía el código como nombre (por eso los selects solo mostraban abreviaciones). Ahora hace
+  `SELECT codigo, nombre, ciudad FROM aeropuertos WHERE codigo IN (origen/destino de vuelos)`.
+- **Selector de pasajero = combobox.** Con ~9.3k pasajeros, los diálogos de reserva/espera no piden
+  teclear: `PasajeroCombobox` busca existentes (`GET /api/pasajeros?q=`) o crea uno nuevo inline. El
+  backend sigue haciendo `upsertPasajero` por documento, así que el contrato del POST no cambió.
 
 ---
 
