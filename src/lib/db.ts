@@ -1,4 +1,10 @@
-import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
+import { QUERY_LOG_ENABLED, nextTxId, recordQuery } from "@/lib/query-log";
+
+// NOTE: standalone query() calls are intentionally NOT recorded in the query
+// log — only queries issued inside a transaction (via withTransaction) are.
+// This keeps the log focused on the meaningful units of work (reservations,
+// cancellations, waitlist enqueue/promotion) instead of every page's SELECTs.
 
 /**
  * Single shared connection pool. We cache it on `globalThis` so Next.js hot
@@ -25,6 +31,8 @@ function getPool(): Pool {
 /**
  * Run a parameterized query and return the rows. Always pass user input via
  * `params` ($1, $2, ...) — never interpolate into the SQL string.
+ *
+ * Standalone queries are not recorded in the query log (see note above).
  */
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
@@ -35,23 +43,89 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
 }
 
 /**
+ * Execute a query without recording it in the query log.
+ * Used internally by the EXPLAIN endpoint to avoid polluting the log.
+ */
+export async function queryRaw<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: readonly unknown[],
+): Promise<QueryResult<T>> {
+  return getPool().query<T>(text, params as unknown[]);
+}
+
+/**
  * Run a unit of work inside a single transaction. The callback receives a
  * dedicated client; the transaction commits if it resolves and rolls back if
  * it throws. This is the backbone of the project: reservations, mass
  * cancellations and waitlist promotion all rely on explicit
  * BEGIN / SELECT ... FOR UPDATE / COMMIT semantics.
+ *
+ * All queries issued through the proxied client (including BEGIN/COMMIT/ROLLBACK)
+ * are recorded in the query log under the same txId.
  */
 export async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
   const client = await getPool().connect();
+  const txId = QUERY_LOG_ENABLED ? nextTxId() : null;
+
+  /**
+   * Proxy that intercepts client.query() calls to time and record them,
+   * then forwards to the real client. All other property accesses (release,
+   * etc.) pass through unchanged.
+   */
+  const proxiedClient = new Proxy(client, {
+    get(target, prop, receiver) {
+      if (prop !== "query") {
+        return Reflect.get(target, prop, receiver) as unknown;
+      }
+
+      return (
+        textOrConfig: string,
+        paramsArg?: unknown[],
+      ): Promise<QueryResult> => {
+        const text =
+          typeof textOrConfig === "string" ? textOrConfig : String(textOrConfig);
+        const start = Date.now();
+
+        return (target.query as (t: string, p?: unknown[]) => Promise<QueryResult>)(
+          text,
+          paramsArg,
+        ).then(
+          (result) => {
+            recordQuery({
+              txId,
+              sql: text,
+              params: paramsArg,
+              durationMs: Date.now() - start,
+              rowCount: result.rowCount,
+              error: null,
+            });
+            return result;
+          },
+          (err: unknown) => {
+            recordQuery({
+              txId,
+              sql: text,
+              params: paramsArg,
+              durationMs: Date.now() - start,
+              rowCount: null,
+              error: String(err),
+            });
+            throw err;
+          },
+        );
+      };
+    },
+  });
+
   try {
-    await client.query("BEGIN");
-    const result = await fn(client);
-    await client.query("COMMIT");
+    await proxiedClient.query("BEGIN");
+    const result = await fn(proxiedClient as PoolClient);
+    await proxiedClient.query("COMMIT");
     return result;
   } catch (error) {
-    await client.query("ROLLBACK");
+    await proxiedClient.query("ROLLBACK");
     throw error;
   } finally {
     client.release();

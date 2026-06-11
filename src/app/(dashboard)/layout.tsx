@@ -3,6 +3,7 @@ import { getCurrentOperator } from "@/lib/auth"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Toaster } from "@/components/ui/sonner"
+import { QueryLogDrawer } from "@/components/query-log/query-log-drawer"
 
 export default async function DashboardLayout({
   children,
@@ -30,6 +31,7 @@ export default async function DashboardLayout({
       </div>
 
       <Toaster />
+      {process.env.NODE_ENV !== "production" && <QueryLogDrawer />}
     </div>
   )
 }
