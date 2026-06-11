@@ -34,6 +34,8 @@ interface ReservarAsientoDialogProps {
   asiento: AsientoInfo | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Called after a successful reservation so the map can clear its selection. */
+  onReserved?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +57,7 @@ export function ReservarAsientoDialog({
   asiento,
   open,
   onOpenChange,
+  onReserved,
 }: ReservarAsientoDialogProps) {
   const router = useRouter()
   const [saving, setSaving] = React.useState(false)
@@ -106,6 +109,7 @@ export function ReservarAsientoDialog({
       if (res.status === 201) {
         router.refresh()
         handleOpenChange(false)
+        onReserved?.()
         toast.success(`Asiento ${asiento.numero} reservado exitosamente`)
         return
       }

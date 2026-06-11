@@ -254,6 +254,7 @@ export function SeatMap({ vueloId, flightLabel, seats: seatsProp }: SeatMapProps
         }
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        onReserved={() => setSelectedId(null)}
       />
     </div>
   )
