@@ -1,6 +1,6 @@
 "use client"
 
-import { InfoIcon } from "lucide-react"
+import { InfoIcon, PlaneIcon } from "lucide-react"
 
 import {
   Table,
@@ -49,89 +49,129 @@ function AutoPromocionNote() {
 }
 
 // ---------------------------------------------------------------------------
-// Empty state
+// Grouping — each flight is an independent queue, so the position numbering
+// (1, 2, 3…) is PER FLIGHT. We group consecutive entries by flight code so the
+// repeated "1"s read as "first in line for THIS flight", not a bug.
 // ---------------------------------------------------------------------------
 
-function EmptyState() {
-  return (
-    <TableRow>
-      <TableCell
-        colSpan={6}
-        className="py-12 text-center text-sm text-muted-foreground"
-      >
-        No hay pasajeros en lista de espera.
-      </TableCell>
-    </TableRow>
-  )
+interface GrupoVuelo {
+  vuelo_codigo: string
+  entradas: EntradaListaEspera[]
+}
+
+function agruparPorVuelo(
+  entradas: readonly EntradaListaEspera[],
+): GrupoVuelo[] {
+  const grupos: GrupoVuelo[] = []
+  const indice = new Map<string, GrupoVuelo>()
+
+  for (const entrada of entradas) {
+    let grupo = indice.get(entrada.vuelo_codigo)
+    if (!grupo) {
+      grupo = { vuelo_codigo: entrada.vuelo_codigo, entradas: [] }
+      indice.set(entrada.vuelo_codigo, grupo)
+      grupos.push(grupo)
+    }
+    grupo.entradas.push(entrada)
+  }
+
+  return grupos
 }
 
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
+const COL_COUNT = 5
+
 interface ListaEsperaTableProps {
   entradas: readonly EntradaListaEspera[]
 }
 
 export function ListaEsperaTable({ entradas }: ListaEsperaTableProps) {
+  const grupos = agruparPorVuelo(entradas)
+
   return (
     <div className="rounded-xl border border-border bg-card">
-      <Table aria-label="Lista de espera">
+      <Table aria-label="Lista de espera agrupada por vuelo">
         <TableHeader>
           <TableRow>
             <TableHead className="pl-4 w-24">Posición</TableHead>
             <TableHead>Pasajero</TableHead>
             <TableHead>Documento</TableHead>
-            <TableHead>Vuelo</TableHead>
             <TableHead>Solicitado</TableHead>
             <TableHead className="pr-4 text-right">Promoción</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {entradas.length === 0 ? (
-            <EmptyState />
-          ) : (
-            entradas.map((entrada) => (
-              <TableRow
-                key={entrada.id}
-                className={cn(
-                  entrada.posicion === 1 &&
-                    "bg-amber-50/60 dark:bg-amber-950/20",
-                )}
+
+        {entradas.length === 0 ? (
+          <TableBody>
+            <TableRow>
+              <TableCell
+                colSpan={COL_COUNT}
+                className="py-12 text-center text-sm text-muted-foreground"
               >
-                <TableCell className="pl-4">
-                  <PosicionBadge posicion={entrada.posicion} />
-                </TableCell>
-                <TableCell className="font-medium text-foreground">
-                  {entrada.pasajero_nombre}
-                </TableCell>
-                <TableCell>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {entrada.pasajero_documento}
+                No hay pasajeros en lista de espera.
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        ) : (
+          grupos.map((grupo) => (
+            <TableBody key={grupo.vuelo_codigo}>
+              {/* Flight group header — clarifies that the queue is per flight */}
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableCell colSpan={COL_COUNT} className="py-2 pl-4">
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <PlaneIcon
+                      className="h-3.5 w-3.5 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <span className="font-mono">{grupo.vuelo_codigo}</span>
+                    <span className="font-normal text-muted-foreground">
+                      · {grupo.entradas.length} en espera
+                    </span>
                   </span>
                 </TableCell>
-                <TableCell>
-                  <span className="font-mono text-xs">{entrada.vuelo_codigo}</span>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {entrada.creado_en.toLocaleDateString("es-AR", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                  })}
-                </TableCell>
-                <TableCell className="pr-4 text-right">
-                  {/*
-                   * Promotion is fully automatic via the trg_promover_espera
-                   * PL/pgSQL trigger that fires on reservas UPDATE.
-                   * No manual action is required or exposed here.
-                   */}
-                  <AutoPromocionNote />
-                </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
+
+              {grupo.entradas.map((entrada) => (
+                <TableRow
+                  key={entrada.id}
+                  className={cn(
+                    entrada.posicion === 1 &&
+                      "bg-amber-50/60 dark:bg-amber-950/20",
+                  )}
+                >
+                  <TableCell className="pl-4">
+                    <PosicionBadge posicion={entrada.posicion} />
+                  </TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    {entrada.pasajero_nombre}
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {entrada.pasajero_documento}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {entrada.creado_en.toLocaleDateString("es-HN", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                    })}
+                  </TableCell>
+                  <TableCell className="pr-4 text-right">
+                    {/*
+                     * Promotion is fully automatic via the trg_promover_espera
+                     * PL/pgSQL trigger that fires on reservas UPDATE.
+                     */}
+                    <AutoPromocionNote />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          ))
+        )}
       </Table>
     </div>
   )
