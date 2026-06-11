@@ -15,6 +15,8 @@ export interface VueloOption {
   codigo: string
   origen: string
   destino: string
+  origen_ciudad: string
+  destino_ciudad: string
   salida: string
   estado: EstadoVuelo
   aerolinea_nombre: string | null
@@ -234,7 +236,7 @@ export function VueloCombobox({
   // ── Derived display ──────────────────────────────────────────────────────
   const selectedVuelo = value ? (vueloCache.current.get(value) ?? null) : null
   const triggerLabel = selectedVuelo
-    ? `${selectedVuelo.codigo} — ${selectedVuelo.origen} → ${selectedVuelo.destino}`
+    ? `${selectedVuelo.codigo} — ${selectedVuelo.origen_ciudad} → ${selectedVuelo.destino_ciudad}`
     : "Buscá un vuelo…"
 
   return (
@@ -383,11 +385,11 @@ export function VueloCombobox({
                     </Badge>
                   </div>
 
-                  {/* Row 2: route */}
+                  {/* Row 2: route — cities with IATA codes */}
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <PlaneIcon className="size-3 shrink-0" aria-hidden="true" />
                     <span>
-                      {vuelo.origen} → {vuelo.destino}
+                      {vuelo.origen_ciudad} ({vuelo.origen}) → {vuelo.destino_ciudad} ({vuelo.destino})
                     </span>
                   </div>
 

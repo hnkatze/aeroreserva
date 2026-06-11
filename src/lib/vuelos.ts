@@ -13,6 +13,11 @@ export interface Vuelo {
   codigo: string;
   origen: string;
   destino: string;
+  /** Airport city/name resolved via JOIN with aeropuertos (falls back to the code). */
+  origen_ciudad: string;
+  origen_nombre: string;
+  destino_ciudad: string;
+  destino_nombre: string;
   salida: Date;
   llegada: Date;
   aerolinea_codigo: string | null;
@@ -97,6 +102,10 @@ export async function listarVuelos(opts: VuelosListOptions = {}): Promise<Vuelo[
             v.codigo,
             v.origen,
             v.destino,
+            COALESCE(ao.ciudad, v.origen)  AS origen_ciudad,
+            COALESCE(ao.nombre, v.origen)  AS origen_nombre,
+            COALESCE(ad.ciudad, v.destino) AS destino_ciudad,
+            COALESCE(ad.nombre, v.destino) AS destino_nombre,
             v.salida,
             v.llegada,
             v.aerolinea_codigo,
@@ -104,7 +113,9 @@ export async function listarVuelos(opts: VuelosListOptions = {}): Promise<Vuelo[
             v.estado,
             v.retraso_min
        FROM vuelos v
-       LEFT JOIN aerolineas a ON a.codigo = v.aerolinea_codigo
+       LEFT JOIN aerolineas  a  ON a.codigo  = v.aerolinea_codigo
+       LEFT JOIN aeropuertos ao ON ao.codigo = v.origen
+       LEFT JOIN aeropuertos ad ON ad.codigo = v.destino
       ${where}
       ORDER BY v.salida ASC
       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
@@ -135,6 +146,10 @@ export async function buscarVueloPorCodigo(codigo: string): Promise<Vuelo | null
             v.codigo,
             v.origen,
             v.destino,
+            COALESCE(ao.ciudad, v.origen)  AS origen_ciudad,
+            COALESCE(ao.nombre, v.origen)  AS origen_nombre,
+            COALESCE(ad.ciudad, v.destino) AS destino_ciudad,
+            COALESCE(ad.nombre, v.destino) AS destino_nombre,
             v.salida,
             v.llegada,
             v.aerolinea_codigo,
@@ -142,7 +157,9 @@ export async function buscarVueloPorCodigo(codigo: string): Promise<Vuelo | null
             v.estado,
             v.retraso_min
        FROM vuelos v
-       LEFT JOIN aerolineas a ON a.codigo = v.aerolinea_codigo
+       LEFT JOIN aerolineas  a  ON a.codigo  = v.aerolinea_codigo
+       LEFT JOIN aeropuertos ao ON ao.codigo = v.origen
+       LEFT JOIN aeropuertos ad ON ad.codigo = v.destino
       WHERE v.codigo = $1
       LIMIT 1`,
     [codigo],

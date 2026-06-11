@@ -91,17 +91,37 @@ export function VuelosTable({ vuelos }: VuelosTableProps) {
                     </span>
                   </TableCell>
 
-                  {/* Ruta */}
+                  {/* Ruta — código IATA + ciudad; nombre del aeropuerto en el tooltip */}
                   <TableCell>
-                    <span className="inline-flex items-center gap-1 font-mono text-sm text-foreground">
-                      <span>{vuelo.origen}</span>
-                      <span className="sr-only"> a </span>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span
+                        className="flex flex-col leading-tight"
+                        title={vuelo.origen_nombre}
+                      >
+                        <span className="font-mono text-foreground">
+                          {vuelo.origen}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {vuelo.origen_ciudad}
+                        </span>
+                      </span>
+                      <span className="sr-only">a</span>
                       <ArrowRightIcon
                         className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
                         aria-hidden="true"
                       />
-                      <span>{vuelo.destino}</span>
-                    </span>
+                      <span
+                        className="flex flex-col leading-tight"
+                        title={vuelo.destino_nombre}
+                      >
+                        <span className="font-mono text-foreground">
+                          {vuelo.destino}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {vuelo.destino_ciudad}
+                        </span>
+                      </span>
+                    </div>
                   </TableCell>
 
                   {/* Salida */}
