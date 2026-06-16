@@ -1,7 +1,13 @@
 import Link from "next/link"
 import { ShieldCheckIcon } from "lucide-react"
+import { AuditoriaFiltros } from "@/components/auditoria/auditoria-filtros"
 import { AuditoriaTable } from "@/components/auditoria/auditoria-table"
-import { listarBitacora, contarBitacora } from "@/lib/bitacora"
+import {
+  listarBitacora,
+  contarBitacora,
+  obtenerOpcionesFiltro,
+  type BitacoraFiltros,
+} from "@/lib/bitacora"
 
 import type { Metadata } from "next"
 
@@ -11,29 +17,64 @@ export const metadata: Metadata = {
 }
 
 const PAGE_SIZE = 25
+const OPERACIONES = ["INSERT", "UPDATE", "DELETE"] as const
 
 interface AuditoriaPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
+/** Read a single string value from a searchParams entry. */
+function pick(value: string | string[] | undefined): string {
+  return (Array.isArray(value) ? value[0] : value) ?? ""
+}
+
 export default async function AuditoriaPage({ searchParams }: AuditoriaPageProps) {
   const sp = await searchParams
 
-  const rawPage = sp["page"]
-  const page = Math.max(1, Number(Array.isArray(rawPage) ? rawPage[0] : (rawPage ?? "1")))
+  // ── Read filters from the URL ──────────────────────────────────────────
+  const rawOperacion = pick(sp["operacion"])
+  const operacion = (OPERACIONES as readonly string[]).includes(rawOperacion)
+    ? (rawOperacion as (typeof OPERACIONES)[number])
+    : ""
+  const tabla = pick(sp["tabla"])
+  const usuario = pick(sp["usuario"])
+  const desde = pick(sp["desde"]) // YYYY-MM-DD from <input type="date">
+  const hasta = pick(sp["hasta"])
+
+  // Turn the date-only bounds into full-day timestamps so "hasta" includes the
+  // whole selected day.
+  const filtros: BitacoraFiltros = {
+    ...(operacion ? { operacion } : {}),
+    ...(tabla ? { tabla } : {}),
+    ...(usuario ? { usuarioBd: usuario } : {}),
+    ...(desde ? { desde: `${desde}T00:00:00` } : {}),
+    ...(hasta ? { hasta: `${hasta}T23:59:59.999` } : {}),
+  }
+
+  const rawPage = pick(sp["page"])
+  const page = Math.max(1, Number(rawPage || "1"))
   const offset = (page - 1) * PAGE_SIZE
 
-  const [registros, total] = await Promise.all([
-    listarBitacora({ limit: PAGE_SIZE, offset }),
-    contarBitacora(),
+  const [registros, total, opciones] = await Promise.all([
+    listarBitacora({ ...filtros, limit: PAGE_SIZE, offset }),
+    contarBitacora(filtros),
+    obtenerOpcionesFiltro(),
   ])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const hasPrev = page > 1
   const hasNext = page < totalPages
 
+  // Preserve active filters when paging; only the page number changes.
   function pageHref(p: number): string {
-    return `?page=${p}`
+    const params = new URLSearchParams()
+    if (operacion) params.set("operacion", operacion)
+    if (tabla) params.set("tabla", tabla)
+    if (usuario) params.set("usuario", usuario)
+    if (desde) params.set("desde", desde)
+    if (hasta) params.set("hasta", hasta)
+    params.set("page", String(p))
+    return `?${params.toString()}`
   }
 
   return (
@@ -54,9 +95,16 @@ export default async function AuditoriaPage({ searchParams }: AuditoriaPageProps
         </div>
       </header>
 
+      {/* ── Filtros (server-side, vía URL) ───────────────────────── */}
+      <AuditoriaFiltros
+        tablas={opciones.tablas}
+        usuarios={opciones.usuarios}
+        valores={{ operacion, tabla, usuario, desde, hasta }}
+      />
+
       {/* ── Bitácora ─────────────────────────────────────────────── */}
       <section aria-label="Bitácora de auditoría">
-        <AuditoriaTable registros={registros} />
+        <AuditoriaTable registros={registros} total={total} />
       </section>
 
       {/* ── Paginación ─────────────────────────────────────────────── */}

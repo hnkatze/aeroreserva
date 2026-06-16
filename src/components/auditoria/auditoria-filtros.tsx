@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { FilterIcon } from "lucide-react"
+import { useRouter, usePathname } from "next/navigation"
+import { FilterIcon, XIcon } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -13,42 +13,61 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import type { OperacionSQL } from "@/components/auditoria/operacion-badge"
 
-// MOCK — en producción estos valores vendrían de la DB
-const TABLAS_MOCK = [
-  "reservas",
-  "vuelos",
-  "pasajeros",
-  "asientos",
-  "operadores",
-  "tarifas",
-  "pagos",
-] as const
+const OPERACIONES: readonly OperacionSQL[] = ["INSERT", "UPDATE", "DELETE"]
 
-type TablaDB = (typeof TABLAS_MOCK)[number]
+// Radix Select cannot use an empty-string value, so a sentinel represents the
+// "no filter" option; it is mapped back to "" before navigating.
+const ALL = "__all"
 
-export interface AuditoriaFiltros {
+export interface AuditoriaFiltrosValores {
   operacion: OperacionSQL | ""
-  tabla: TablaDB | ""
+  tabla: string
+  usuario: string
+  desde: string
+  hasta: string
 }
 
 interface AuditoriaFiltrosProps {
-  onFiltrar?: (filtros: AuditoriaFiltros) => void
+  /** Distinct table names actually present in the audit log. */
+  tablas: readonly string[]
+  /** Distinct DB roles actually present in the audit log. */
+  usuarios: readonly string[]
+  /** Currently active filter values (from the URL). */
+  valores: AuditoriaFiltrosValores
 }
 
-export function AuditoriaFiltros({ onFiltrar }: AuditoriaFiltrosProps) {
-  const [operacion, setOperacion] = useState<OperacionSQL | "">("")
-  const [tabla, setTabla] = useState<TablaDB | "">("")
+export function AuditoriaFiltros({
+  tablas,
+  usuarios,
+  valores,
+}: AuditoriaFiltrosProps) {
+  const router = useRouter()
+  const pathname = usePathname()
 
-  function handleOperacionChange(value: string | null) {
-    const next = (value ?? "") as OperacionSQL | ""
-    setOperacion(next)
-    onFiltrar?.({ operacion: next, tabla })
+  const hayFiltros = Boolean(
+    valores.operacion ||
+      valores.tabla ||
+      valores.usuario ||
+      valores.desde ||
+      valores.hasta,
+  )
+
+  // Merge a change into the active filters and navigate. Paging resets because
+  // we don't carry `page` over — a new filter starts at page 1.
+  function aplicar(cambios: Partial<AuditoriaFiltrosValores>): void {
+    const merged: AuditoriaFiltrosValores = { ...valores, ...cambios }
+    const params = new URLSearchParams()
+    if (merged.operacion) params.set("operacion", merged.operacion)
+    if (merged.tabla) params.set("tabla", merged.tabla)
+    if (merged.usuario) params.set("usuario", merged.usuario)
+    if (merged.desde) params.set("desde", merged.desde)
+    if (merged.hasta) params.set("hasta", merged.hasta)
+    const qs = params.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname)
   }
 
-  function handleTablaChange(value: string | null) {
-    const next = (value ?? "") as TablaDB | ""
-    setTabla(next)
-    onFiltrar?.({ operacion, tabla: next })
+  function limpiar(): void {
+    router.push(pathname)
   }
 
   return (
@@ -56,14 +75,14 @@ export function AuditoriaFiltros({ onFiltrar }: AuditoriaFiltrosProps) {
       <CardContent className="px-5 py-4">
         <fieldset>
           <legend className="sr-only">Filtros de auditoría</legend>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4">
             {/* Ícono decorativo */}
             <div className="hidden items-center self-end pb-2 text-muted-foreground sm:flex">
               <FilterIcon className="h-4 w-4" aria-hidden="true" />
             </div>
 
             {/* Operación */}
-            <div className="flex flex-col gap-1.5 sm:w-48">
+            <div className="flex flex-col gap-1.5 sm:w-40">
               <Label
                 htmlFor="filtro-operacion"
                 className="text-xs font-medium text-muted-foreground"
@@ -71,28 +90,29 @@ export function AuditoriaFiltros({ onFiltrar }: AuditoriaFiltrosProps) {
                 Operación
               </Label>
               <Select
-                value={operacion || undefined}
-                onValueChange={handleOperacionChange}
+                value={valores.operacion || ALL}
+                onValueChange={(v) =>
+                  aplicar({
+                    operacion: v && v !== ALL ? (v as OperacionSQL) : "",
+                  })
+                }
               >
                 <SelectTrigger id="filtro-operacion" className="h-9 font-mono text-sm">
                   <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="INSERT">
-                    <span className="font-mono">INSERT</span>
-                  </SelectItem>
-                  <SelectItem value="UPDATE">
-                    <span className="font-mono">UPDATE</span>
-                  </SelectItem>
-                  <SelectItem value="DELETE">
-                    <span className="font-mono">DELETE</span>
-                  </SelectItem>
+                  <SelectItem value={ALL}>Todas</SelectItem>
+                  {OPERACIONES.map((op) => (
+                    <SelectItem key={op} value={op}>
+                      <span className="font-mono">{op}</span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             {/* Tabla */}
-            <div className="flex flex-col gap-1.5 sm:w-48">
+            <div className="flex flex-col gap-1.5 sm:w-40">
               <Label
                 htmlFor="filtro-tabla"
                 className="text-xs font-medium text-muted-foreground"
@@ -100,14 +120,15 @@ export function AuditoriaFiltros({ onFiltrar }: AuditoriaFiltrosProps) {
                 Tabla
               </Label>
               <Select
-                value={tabla || undefined}
-                onValueChange={handleTablaChange}
+                value={valores.tabla || ALL}
+                onValueChange={(v) => aplicar({ tabla: v && v !== ALL ? v : "" })}
               >
                 <SelectTrigger id="filtro-tabla" className="h-9 font-mono text-sm">
                   <SelectValue placeholder="Todas las tablas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TABLAS_MOCK.map((t) => (
+                  <SelectItem value={ALL}>Todas las tablas</SelectItem>
+                  {tablas.map((t) => (
                     <SelectItem key={t} value={t}>
                       <span className="font-mono">{t}</span>
                     </SelectItem>
@@ -116,16 +137,79 @@ export function AuditoriaFiltros({ onFiltrar }: AuditoriaFiltrosProps) {
               </Select>
             </div>
 
-            {/* Indicador de filtros activos */}
-            <p
-              aria-live="polite"
-              aria-atomic="true"
-              className="self-end pb-2 font-mono text-xs text-muted-foreground"
-            >
-              {(operacion || tabla)
-                ? `Filtrando por${operacion ? ` ${operacion}` : ""}${tabla ? ` · ${tabla}` : ""}`
-                : ""}
-            </p>
+            {/* Usuario BD */}
+            <div className="flex flex-col gap-1.5 sm:w-40">
+              <Label
+                htmlFor="filtro-usuario"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Usuario BD
+              </Label>
+              <Select
+                value={valores.usuario || ALL}
+                onValueChange={(v) => aplicar({ usuario: v && v !== ALL ? v : "" })}
+              >
+                <SelectTrigger id="filtro-usuario" className="h-9 font-mono text-sm">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>Todos</SelectItem>
+                  {usuarios.map((u) => (
+                    <SelectItem key={u} value={u}>
+                      <span className="font-mono">{u}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Desde */}
+            <div className="flex flex-col gap-1.5">
+              <Label
+                htmlFor="filtro-desde"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Desde
+              </Label>
+              <input
+                id="filtro-desde"
+                type="date"
+                value={valores.desde}
+                max={valores.hasta || undefined}
+                onChange={(e) => aplicar({ desde: e.target.value })}
+                className="h-9 rounded-md border border-input bg-background px-3 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+
+            {/* Hasta */}
+            <div className="flex flex-col gap-1.5">
+              <Label
+                htmlFor="filtro-hasta"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Hasta
+              </Label>
+              <input
+                id="filtro-hasta"
+                type="date"
+                value={valores.hasta}
+                min={valores.desde || undefined}
+                onChange={(e) => aplicar({ hasta: e.target.value })}
+                className="h-9 rounded-md border border-input bg-background px-3 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+
+            {/* Limpiar */}
+            {hayFiltros && (
+              <button
+                type="button"
+                onClick={limpiar}
+                className="flex h-9 items-center gap-1.5 self-end rounded-md border border-border bg-background px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <XIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                Limpiar
+              </button>
+            )}
           </div>
         </fieldset>
       </CardContent>
