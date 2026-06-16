@@ -121,11 +121,19 @@ erDiagram
 | Área | Estado |
 |------|--------|
 | Autenticación de operadores (login, sesiones en DB, roles) | ✅ Implementado |
-| Capa de UI (dashboard, vuelos, asientos, reservas, lista de espera, reportes, auditoría, laboratorio) | ✅ Maquetada con datos de ejemplo |
-| Modelo de datos del catálogo (`aeropuertos`, `vuelos`, `asientos`) | 🔜 En progreso |
-| Reservas con concurrencia, funciones/triggers, lista de espera | 🔜 Pendiente |
+| Modelo de datos del catálogo (`aeropuertos`, `aerolineas`, `vuelos`, `asientos`) | ✅ Implementado |
+| Capa de UI (dashboard, vuelos, asientos, reservas, lista de espera, reportes, auditoría, esquema, laboratorio, DBA, usuarios) | ✅ Conectada a la base de datos real |
+| Reservas con concurrencia (`SELECT ... FOR UPDATE`, anti doble-reserva) | ✅ Implementado |
+| Funciones y triggers (auditoría automática, promoción de lista de espera) | ✅ Implementado |
+| Lista de espera con promoción automática | ✅ Implementado |
+| Laboratorio de concurrencia ejecutable (aislamiento, deadlocks, doble-reserva) | ✅ Implementado |
+| Roles y permisos en ejecución (`SET LOCAL ROLE` por operador) | ✅ Implementado |
+| Panel DBA (catálogos de sistema: tamaños, índices, uso) | ✅ Implementado |
+| Auditoría — bitácora automática con detalle por registro | ✅ Implementado |
+| Reportes y vistas de ocupación | ✅ Implementado |
 
-> Las pantallas operativas usan **datos de ejemplo** hasta que el catálogo de vuelos esté conectado.
+> Todas las pantallas operativas leen y escriben contra PostgreSQL real. No quedan datos de ejemplo
+> embebidos en el frontend; los datos provienen de los seeds y/o del importador de OpenFlights.
 
 ## Cómo correr
 
@@ -139,15 +147,44 @@ docker exec -i postgres-dev psql -U postgres -c "CREATE DATABASE aeroreserva"
 #    Crear .env.local con:
 #    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/aeroreserva"
 
-# 3. Instalar dependencias y aplicar migraciones
+# 3. Instalar dependencias
 npm install
-docker exec -i postgres-dev psql -U postgres -d aeroreserva < db/migrations/001_auth.sql
 
-# 4. Seed de un operador admin de desarrollo (admin / admin123)
+# 4. Aplicar TODAS las migraciones en orden (el glob las ordena: 001 → 012; no existe 004)
+for f in db/migrations/*.sql; do
+  echo "Aplicando $f"
+  docker exec -i postgres-dev psql -U postgres -d aeroreserva < "$f"
+done
+
+# 5. Seed de un operador admin de desarrollo (admin / admin123)
 node --env-file=.env.local db/seed.mjs
 
-# 5. Arrancar
+# 6. Cargar el catálogo (aeropuertos, vuelos, asientos). Elegí UNA opción:
+#    a) Catálogo de demo, pequeño e idempotente:
+node --env-file=.env.local db/seed-catalog.mjs
+#    b) Catálogo real desde OpenFlights (más grande; soporta escala):
+#    node --env-file=.env.local db/import-openflights.mjs --vuelos=300 --asientos=150
+
+# 7. Arrancar
 npm run dev   # http://localhost:3000
+```
+
+### Seeds opcionales (datos de demo más ricos)
+
+```bash
+# Llenar la tabla `aerolineas` y vincular vuelos.aerolinea_codigo (OpenFlights)
+node --env-file=.env.local db/backfill-aerolineas.mjs
+
+# Ocupación y estados de vuelo variados para una demo realista (~25-30% ocupación)
+node --env-file=.env.local db/seed-ruido.mjs
+```
+
+### Scripts de demostración / benchmark
+
+```bash
+node --env-file=.env.local db/demo-roles.mjs          # GRANT/REVOKE en acción por rol
+node --env-file=.env.local db/stress-concurrency.mjs  # carga concurrente real (anti doble-reserva)
+node --env-file=.env.local db/benchmark.mjs           # tiempos con/sin índice (EXPLAIN ANALYZE)
 ```
 
 ## Conceptos de administración de BD demostrados
