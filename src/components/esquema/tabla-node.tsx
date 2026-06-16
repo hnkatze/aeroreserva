@@ -11,6 +11,13 @@ export type TablaNode = Node<{
   columnas: ColumnaInfo[];
 }>;
 
+// Multiple stacked anchor points per side. Parallel FKs between the same pair
+// of tables (e.g. vuelos.origen and vuelos.destino both → aeropuertos) attach to
+// DIFFERENT handles so their lines fan apart instead of stacking into one and
+// hiding each other. The diagram references these by id: `s0..s4` / `t0..t4`.
+export const HANDLE_COUNT = 5;
+const HANDLE_TOPS = ["18%", "34%", "50%", "66%", "82%"] as const;
+
 export function TablaNode({ data }: NodeProps<TablaNode>) {
   return (
     <div
@@ -76,17 +83,30 @@ export function TablaNode({ data }: NodeProps<TablaNode>) {
         ))}
       </ul>
 
-      {/* React Flow handles — one on each side */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!h-2.5 !w-2.5 !border-2 !border-primary !bg-background"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!h-2.5 !w-2.5 !border-2 !border-primary !bg-background"
-      />
+      {/* React Flow handles — several stacked anchors per side so parallel
+          relationships can attach at different heights and not overlap. */}
+      {HANDLE_TOPS.map((top, i) => (
+        <Handle
+          key={`s${i}`}
+          id={`s${i}`}
+          type="source"
+          position={Position.Right}
+          isConnectable={false}
+          style={{ top }}
+          className="!h-1.5 !w-1.5 !border !border-primary/40 !bg-background"
+        />
+      ))}
+      {HANDLE_TOPS.map((top, i) => (
+        <Handle
+          key={`t${i}`}
+          id={`t${i}`}
+          type="target"
+          position={Position.Left}
+          isConnectable={false}
+          style={{ top }}
+          className="!h-1.5 !w-1.5 !border !border-primary/40 !bg-background"
+        />
+      ))}
     </div>
   );
 }
