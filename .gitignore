@@ -52,3 +52,6 @@ AERORESERVA-PROPUESTA.md
 
 .playwright-mcp/
 .codegraph/
+
+# project docs (academic deliverables — kept local, not in repo)
+/docs
