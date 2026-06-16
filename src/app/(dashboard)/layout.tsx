@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Toaster } from "@/components/ui/sonner"
 import { QueryLogDrawer } from "@/components/query-log/query-log-drawer"
+import { QUERY_LOG_ENABLED } from "@/lib/query-log"
 
 export default async function DashboardLayout({
   children,
@@ -31,7 +32,7 @@ export default async function DashboardLayout({
       </div>
 
       <Toaster />
-      {process.env.NODE_ENV !== "production" && <QueryLogDrawer />}
+      {QUERY_LOG_ENABLED && <QueryLogDrawer />}
     </div>
   )
 }

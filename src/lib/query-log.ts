@@ -1,7 +1,14 @@
 /**
  * In-memory query log for the dev/demo SQL query inspector.
  * Cached on globalThis so Next.js hot-reload does not reset the buffer.
- * All exports are no-ops when QUERY_LOG_ENABLED is false (production).
+ * All exports are no-ops when QUERY_LOG_ENABLED is false.
+ *
+ * Toggle: NEXT_PUBLIC_QUERY_LOG overrides the default.
+ *   "true"  → always on (useful for a production demo)
+ *   "false" → always off
+ *   unset   → on outside production (the original dev-only behavior)
+ * NEXT_PUBLIC_ is inlined at build time, so set it before `npm run build`
+ * if you want it active in a production build.
  */
 
 export type QueryKind =
@@ -49,8 +56,13 @@ function getState(): QueryLogState {
   return g.__queryLog;
 }
 
+const queryLogFlag = process.env.NEXT_PUBLIC_QUERY_LOG;
 export const QUERY_LOG_ENABLED: boolean =
-  process.env.NODE_ENV !== "production";
+  queryLogFlag === "true"
+    ? true
+    : queryLogFlag === "false"
+      ? false
+      : process.env.NODE_ENV !== "production";
 
 function deriveKind(sql: string): QueryKind {
   const first = sql.trimStart().split(/\s+/)[0]?.toUpperCase() ?? "";
