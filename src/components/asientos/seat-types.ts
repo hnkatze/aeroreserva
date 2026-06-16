@@ -10,6 +10,8 @@ export interface Seat {
   col: string        // A–F
   clase: SeatClass
   status: SeatStatus
+  pasajeroNombre: string | null     // who holds the seat — null when free
+  pasajeroDocumento: string | null
 }
 
 export const COLUMNS = ["A", "B", "C", "D", "E", "F"] as const
@@ -36,6 +38,9 @@ export interface SeatInput {
   numero: string  // e.g. "3A" — seat identifier displayed on the button
   clase: string   // "economica" | "ejecutiva"
   estado: string  // "libre" | "ocupado" | "reservado"
+  /** Passenger holding the confirmed reservation — null/absent when free */
+  pasajero_nombre?: string | null
+  pasajero_documento?: string | null
 }
 
 /**
@@ -66,7 +71,16 @@ export function buildSeatsFromData(inputs: SeatInput[]): Seat[] {
     const status: SeatStatus =
       input.estado === "libre" ? "libre" : "ocupado"
 
-    seats.push({ id: input.numero, dbId: input.id, row, col, clase, status })
+    seats.push({
+      id: input.numero,
+      dbId: input.id,
+      row,
+      col,
+      clase,
+      status,
+      pasajeroNombre: input.pasajero_nombre ?? null,
+      pasajeroDocumento: input.pasajero_documento ?? null,
+    })
   }
   return seats
 }

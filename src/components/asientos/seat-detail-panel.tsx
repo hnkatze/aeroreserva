@@ -1,6 +1,6 @@
 "use client"
 
-import { ArmchairIcon, CheckIcon, PlaneIcon } from "lucide-react"
+import { ArmchairIcon, CheckIcon, PlaneIcon, UserIcon } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -138,6 +138,41 @@ export function SeatDetailPanel({
             />
           </div>
         </div>
+
+        {seat.status === "ocupado" && (
+          <div
+            className="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-3"
+            role="note"
+            aria-label={
+              seat.pasajeroNombre
+                ? `Asiento reservado por ${seat.pasajeroNombre}`
+                : "Asiento ocupado"
+            }
+          >
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <UserIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="text-xs font-medium uppercase tracking-wide">
+                Reservado por
+              </span>
+            </div>
+            {seat.pasajeroNombre ? (
+              <>
+                <p className="mt-1.5 text-sm font-semibold text-foreground">
+                  {seat.pasajeroNombre}
+                </p>
+                {seat.pasajeroDocumento && (
+                  <p className="font-mono text-xs text-muted-foreground">
+                    Doc. {seat.pasajeroDocumento}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Sin reserva confirmada asociada
+              </p>
+            )}
+          </div>
+        )}
 
         {seat.clase === "ejecutiva" && (
           <div
