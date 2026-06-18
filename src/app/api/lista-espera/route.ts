@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     if (
       isPgError(error) &&
       error.code === "23505" &&
-      error.constraint === "uq_lista_espera_vuelo_pasajero"
+      error.constraint === "ux_lista_espera_vuelo_pasajero"
     ) {
       return NextResponse.json(
         {
