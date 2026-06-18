@@ -1,6 +1,7 @@
 import Link from "next/link"
 import type { Metadata } from "next"
 import { ReservasTable } from "@/components/reservas/reservas-table"
+import { ReservasBuscar } from "@/components/reservas/reservas-buscar"
 import { NuevaReservaDialog } from "@/components/reservas/nueva-reserva-dialog"
 import { listarReservas, contarReservas } from "@/lib/reservas"
 
@@ -22,9 +23,12 @@ export default async function ReservasPage({ searchParams }: ReservasPageProps) 
   const page = Math.max(1, Number(Array.isArray(rawPage) ? rawPage[0] : (rawPage ?? "1")))
   const offset = (page - 1) * PAGE_SIZE
 
+  const rawQuery = sp["q"]
+  const search = (Array.isArray(rawQuery) ? rawQuery[0] : rawQuery)?.trim() ?? ""
+
   const [reservas, total] = await Promise.all([
-    listarReservas({ limit: PAGE_SIZE, offset }),
-    contarReservas(),
+    listarReservas({ limit: PAGE_SIZE, offset, search }),
+    contarReservas({ search }),
   ])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -32,7 +36,10 @@ export default async function ReservasPage({ searchParams }: ReservasPageProps) 
   const hasNext = page < totalPages
 
   function pageHref(p: number): string {
-    return `?page=${p}`
+    const params = new URLSearchParams()
+    params.set("page", String(p))
+    if (search) params.set("q", search)
+    return `?${params.toString()}`
   }
 
   return (
@@ -50,8 +57,18 @@ export default async function ReservasPage({ searchParams }: ReservasPageProps) 
         <NuevaReservaDialog />
       </header>
 
+      {/* ── Búsqueda ────────────────────────────────────────────── */}
+      <ReservasBuscar valorInicial={search} />
+
       {/* ── Table ───────────────────────────────────────────────── */}
-      <section aria-label="Listado de reservas">
+      <section aria-label="Listado de reservas" className="flex flex-col gap-3">
+        {search && (
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {total === 0
+              ? `Sin resultados para “${search}”.`
+              : `${total} ${total === 1 ? "reserva" : "reservas"} para “${search}”.`}
+          </p>
+        )}
         <ReservasTable reservas={reservas} />
       </section>
 

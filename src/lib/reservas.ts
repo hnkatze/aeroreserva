@@ -243,11 +243,18 @@ export interface ListarReservasOpts {
   limit?: number;
   /** Number of records to skip. Defaults to 0. */
   offset?: number;
+  /**
+   * Free-text search applied to the passenger name OR document (case-insensitive,
+   * substring match). Empty/whitespace is ignored. Always parameterized — never
+   * interpolated — to keep the query injection-safe.
+   */
+  search?: string;
 }
 
 /**
  * Return a paginated list of reservations with their associated passenger,
  * flight and seat data, ordered by creation date descending.
+ * Optionally filtered by a passenger name/document search term.
  * Defaults: limit = 25, offset = 0.
  */
 export async function listarReservas(
@@ -255,6 +262,20 @@ export async function listarReservas(
 ): Promise<ReservaCompleta[]> {
   const limit = opts.limit ?? 25;
   const offset = opts.offset ?? 0;
+  const search = opts.search?.trim();
+
+  // Build the parameter list dynamically so the search predicate (when present)
+  // shifts the positional indexes of limit/offset.
+  const params: unknown[] = [];
+  let whereClause = "";
+  if (search) {
+    params.push(`%${search}%`);
+    whereClause = `WHERE (p.nombre ILIKE $${params.length} OR p.documento ILIKE $${params.length})`;
+  }
+  params.push(limit);
+  const limitIdx = params.length;
+  params.push(offset);
+  const offsetIdx = params.length;
 
   return query<ReservaCompleta>(
     `SELECT
@@ -270,9 +291,10 @@ export async function listarReservas(
      JOIN pasajeros  p ON p.id = r.pasajero_id
      JOIN vuelos     v ON v.id = r.vuelo_id
      JOIN asientos   a ON a.id = r.asiento_id
+    ${whereClause}
     ORDER BY r.creado_en DESC
-    LIMIT $1 OFFSET $2`,
-    [limit, offset],
+    LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    params,
   );
 }
 
@@ -280,11 +302,35 @@ export async function listarReservas(
 // contarReservas
 // ---------------------------------------------------------------------------
 
+export interface ContarReservasOpts {
+  /**
+   * Same passenger name/document search applied by listarReservas, so the
+   * pagination total matches the filtered result set. Always parameterized.
+   */
+  search?: string;
+}
+
 /**
- * Return the total count of reservations (all states).
+ * Return the total count of reservations (all states), optionally restricted
+ * to the same passenger name/document search used by listarReservas.
  * Used for pagination metadata.
  */
-export async function contarReservas(): Promise<number> {
+export async function contarReservas(
+  opts: ContarReservasOpts = {},
+): Promise<number> {
+  const search = opts.search?.trim();
+
+  if (search) {
+    const rows = await query<{ total: string }>(
+      `SELECT COUNT(*) AS total
+         FROM reservas r
+         JOIN pasajeros p ON p.id = r.pasajero_id
+        WHERE (p.nombre ILIKE $1 OR p.documento ILIKE $1)`,
+      [`%${search}%`],
+    );
+    return Number(rows[0]?.total ?? 0);
+  }
+
   const rows = await query<{ total: string }>(
     `SELECT COUNT(*) AS total FROM reservas`,
   );
