@@ -14,6 +14,7 @@ import {
   GitBranch,
   Network,
   Activity,
+  GraduationCap,
   Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { label: "Lab. concurrencia", href: "/laboratorio", icon: GitBranch },
   { label: "Modelo de datos", href: "/esquema", icon: Network },
   { label: "Salud DB", href: "/dba", icon: Activity },
+  { label: "Conceptos", href: "/conceptos", icon: GraduationCap },
 ] as const
 
 export function AppSidebar() {

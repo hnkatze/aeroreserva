@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Paths reachable without a session.
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/conceptos"];
 
 /**
  * Optimistic auth gate. Per Next 16 guidance, Proxy must NOT hit the database

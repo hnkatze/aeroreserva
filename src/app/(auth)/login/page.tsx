@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,6 +123,19 @@ export default function LoginPage() {
               {loading ? "Ingresando…" : "Ingresar"}
             </Button>
           </form>
+
+          <div className="mt-6 border-t border-border pt-5">
+            <p className="text-sm text-muted-foreground">
+              ¿Querés entender la base de datos detrás de este sistema?
+            </p>
+            <Link
+              href="/conceptos"
+              className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+            >
+              Ver conceptos de base de datos
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
       </main>
     </div>
