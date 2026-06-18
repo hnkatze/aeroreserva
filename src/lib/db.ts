@@ -102,7 +102,7 @@ export async function withTransaction<T>(
   opts?: WithTransactionOpts,
 ): Promise<T> {
   const client = await getPool().connect();
-  const txId = QUERY_LOG_ENABLED ? nextTxId() : null;
+  const txId = QUERY_LOG_ENABLED ? await nextTxId() : null;
 
   /**
    * Proxy that intercepts client.query() calls to time and record them,
@@ -127,8 +127,10 @@ export async function withTransaction<T>(
           text,
           paramsArg,
         ).then(
-          (result) => {
-            recordQuery({
+          async (result) => {
+            // Await so the log write completes before this query resolves —
+            // on serverless the instance may freeze once the request returns.
+            await recordQuery({
               txId,
               sql: text,
               params: paramsArg,
@@ -138,8 +140,8 @@ export async function withTransaction<T>(
             });
             return result;
           },
-          (err: unknown) => {
-            recordQuery({
+          async (err: unknown) => {
+            await recordQuery({
               txId,
               sql: text,
               params: paramsArg,
