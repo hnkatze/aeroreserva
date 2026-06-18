@@ -159,8 +159,9 @@ export async function encolarEnEspera(
     // the table directly.  app_admin has ALL privileges so it works either way.
     //
     // The function also enforces the same COALESCE(MAX(posicion),0)+1 logic and
-    // the uq_lista_espera_vuelo_pasajero unique constraint, so callers still
-    // receive 23505 on duplicate enqueue.
+    // the ux_lista_espera_vuelo_pasajero PARTIAL unique index (migration 014,
+    // WHERE estado='esperando'), so callers still receive 23505 when the
+    // passenger is already actively waiting for this flight.
     const fnResult = await client.query<{ encolar_espera: number }>(
       `SELECT encolar_espera($1, $2) AS encolar_espera`,
       [input.vueloId, pasajeroId],
@@ -193,4 +194,65 @@ export async function encolarEnEspera(
     if (!row) throw new Error("encolarEnEspera: could not retrieve inserted row");
     return row;
   }, { pgRole: input.pgRole });
+}
+
+// ---------------------------------------------------------------------------
+// promoverManual — operator-driven promotion (D8)
+// ---------------------------------------------------------------------------
+
+/**
+ * Manually promote a waiting passenger by assigning them the FIRST free seat
+ * on their flight (delegates to the promover_manual() SECURITY DEFINER
+ * function from migration 013).
+ *
+ * The operator is published to app.current_operator inside the transaction so
+ * the resulting reservation — and its audit trigger — record who promoted.
+ *
+ * @returns the new reserva id, or null when the flight has no free seat
+ *   (the caller should surface "vuelo lleno, no se puede promover").
+ */
+export async function promoverManual(
+  entradaId: number,
+  operadorId: number,
+  pgRole?: PgRole,
+): Promise<number | null> {
+  return withTransaction(async (client: PoolClient) => {
+    await client.query(
+      "SELECT set_config('app.current_operator', $1, true)",
+      [String(operadorId)],
+    );
+
+    const result = await client.query<{ promover_manual: number | null }>(
+      `SELECT promover_manual($1) AS promover_manual`,
+      [entradaId],
+    );
+
+    return result.rows[0]?.promover_manual ?? null;
+  }, { pgRole });
+}
+
+// ---------------------------------------------------------------------------
+// cancelarEspera — withdraw a passenger from the queue
+// ---------------------------------------------------------------------------
+
+/**
+ * Cancel a waitlist entry and close the gap so everyone behind moves up one
+ * position (delegates to the cancelar_espera() SECURITY DEFINER function from
+ * migration 013).
+ *
+ * @returns true when an 'esperando' entry was cancelled, false when the entry
+ *   does not exist or is no longer waiting.
+ */
+export async function cancelarEspera(
+  entradaId: number,
+  pgRole?: PgRole,
+): Promise<boolean> {
+  return withTransaction(async (client: PoolClient) => {
+    const result = await client.query<{ cancelar_espera: boolean }>(
+      `SELECT cancelar_espera($1) AS cancelar_espera`,
+      [entradaId],
+    );
+
+    return result.rows[0]?.cancelar_espera ?? false;
+  }, { pgRole });
 }

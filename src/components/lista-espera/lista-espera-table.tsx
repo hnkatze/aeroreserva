@@ -1,6 +1,15 @@
 "use client"
 
-import { InfoIcon, PlaneIcon } from "lucide-react"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import {
+  InfoIcon,
+  PlaneIcon,
+  MoreHorizontalIcon,
+  ArrowUpCircleIcon,
+  XCircleIcon,
+} from "lucide-react"
+import { toast } from "sonner"
 
 import {
   Table,
@@ -10,6 +19,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import type { EntradaListaEspera } from "@/lib/lista-espera"
 
@@ -49,6 +66,80 @@ function AutoPromocionNote() {
 }
 
 // ---------------------------------------------------------------------------
+// Row actions menu — manual promote / cancel (migration 013)
+// ---------------------------------------------------------------------------
+
+function EsperaActionsMenu({ entrada }: { entrada: EntradaListaEspera }) {
+  const router = useRouter()
+  const [enviando, setEnviando] = useState(false)
+
+  async function ejecutar(accion: "promover" | "cancelar"): Promise<void> {
+    if (enviando) return
+    setEnviando(true)
+    try {
+      const res = await fetch(`/api/lista-espera/${entrada.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion }),
+      })
+
+      if (res.ok) {
+        toast.success(
+          accion === "promover"
+            ? `${entrada.pasajero_nombre} fue promovido a un asiento`
+            : `${entrada.pasajero_nombre} salió de la lista de espera`,
+        )
+        router.refresh()
+        return
+      }
+
+      const data = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | null
+      toast.error(data?.error ?? "No se pudo completar la acción")
+    } catch {
+      toast.error("No se pudo completar la acción")
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Acciones para ${entrada.pasajero_nombre} en lista de espera`}
+          />
+        }
+      >
+        <MoreHorizontalIcon className="h-4 w-4" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="bottom">
+        <DropdownMenuItem
+          onClick={() => { void ejecutar("promover") }}
+          disabled={enviando}
+        >
+          <ArrowUpCircleIcon className="h-4 w-4" aria-hidden="true" />
+          Promover ahora
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => { void ejecutar("cancelar") }}
+          disabled={enviando}
+        >
+          <XCircleIcon className="h-4 w-4" aria-hidden="true" />
+          Cancelar espera
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Grouping — each flight is an independent queue, so the position numbering
 // (1, 2, 3…) is PER FLIGHT. We group consecutive entries by flight code so the
 // repeated "1"s read as "first in line for THIS flight", not a bug.
@@ -82,7 +173,7 @@ function agruparPorVuelo(
 // Main component
 // ---------------------------------------------------------------------------
 
-const COL_COUNT = 5
+const COL_COUNT = 6
 
 interface ListaEsperaTableProps {
   entradas: readonly EntradaListaEspera[]
@@ -100,7 +191,8 @@ export function ListaEsperaTable({ entradas }: ListaEsperaTableProps) {
             <TableHead>Pasajero</TableHead>
             <TableHead>Documento</TableHead>
             <TableHead>Solicitado</TableHead>
-            <TableHead className="pr-4 text-right">Promoción</TableHead>
+            <TableHead>Promoción</TableHead>
+            <TableHead className="pr-4 text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -160,12 +252,16 @@ export function ListaEsperaTable({ entradas }: ListaEsperaTableProps) {
                       day: "2-digit",
                     })}
                   </TableCell>
-                  <TableCell className="pr-4 text-right">
+                  <TableCell>
                     {/*
-                     * Promotion is fully automatic via the trg_promover_espera
-                     * PL/pgSQL trigger that fires on reservas UPDATE.
+                     * Promotion is automatic via the trg_promover_espera
+                     * PL/pgSQL trigger when a seat is freed — but an operator
+                     * can also act manually with the actions menu.
                      */}
                     <AutoPromocionNote />
+                  </TableCell>
+                  <TableCell className="pr-4 text-right">
+                    <EsperaActionsMenu entrada={entrada} />
                   </TableCell>
                 </TableRow>
               ))}
